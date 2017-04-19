@@ -130,6 +130,10 @@ represented in Coq using the type [arg], can be one of the following
   
   Definition wfvarB (b : block) : Prop := fold_left and (map wfvar b) True.
 
+  (* --------------------------
+     Tactics for the above needed
+  *)
+
 End Language.
 
 Arguments wftypesB [v] _ .
@@ -357,20 +361,6 @@ End Instruction.
 Module Block := ListAST Instruction.
 
 (* Helper functions for the Function module *)
-
-Fixpoint ivars {var} (i : instruction var) : Ensemble (sigT var) :=
-  match i with
-  | assign _ a => match a with
-                     | assign3 _ _ _ a1 a2 a3 => Union _ (Union _ (striparg a1) (striparg a2)) (striparg a3)
-                     | assign2 _ _ _ a1 a2 => Union _ (striparg a1) (striparg a2)
-                     | update2 _ _ _ a1 a2 => Union _ (striparg a1) (striparg a2)
-                     | update1 _ _ _ a1 => striparg a1
-                     end
-  end.
-
-Definition bvars {var : varT} (b : block var) := fold_left (fun S i => Union _ S (ivars i)) b (Empty_set _).
-
-
 (*
 Definition alloc_not_none {v1 v2} (transv : forall ty, v1 ty -> option (v2 ty)) (i : instruction v1) (allAlloc : forall vv : sigT v1, In _ (ivars i) vv -> transv _ (projT2 vv) <> None)
   : instruction v2.

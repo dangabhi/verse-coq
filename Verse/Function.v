@@ -7,6 +7,7 @@ Require Import Coq.Sets.Ensembles.
 Require Import List.
 Import ListNotations.
 
+Set Implicit Arguments.
 
 Fixpoint listSet {A : Type} (l : list A) : Ensemble A :=
   match l with
@@ -14,35 +15,48 @@ Fixpoint listSet {A : Type} (l : list A) : Ensemble A :=
   | a :: lt => Ensembles.Add _ (listSet lt) a
   end.
 
-Module Type Function (arch : ARCH).
-  
-  Parameter name     : string.
+(** #######################
+The archvar that is passed to Function has to be the one with a dummy stack provided. The Arch module type should construct out of it's register and stack parameters a full archvar and a dummy archvar
+ *)
 
-  (** The variable type on which the function body is parametrized *)
-  Parameter fvar     : type -> Type.
+Record Function (archvar : varT) := func
+                    {
+                      name     : string;
 
-  (** The ordered list of parameters of the function *)
-  Parameter param    : list {ty : type & fvar ty}.
+                      (** The variable type on which the function body is parametrized *)
+                      fvar     : type -> Type;
 
-  (** Allocation onto _archvar_ from the local variables *)
-  Parameter localloc : list {fv : {ty : type & fvar ty} & (arch.var (projT1 fv))}.
+                      (** The ordered list of parameters of the function *)
+                      param    : list {ty : type & fvar ty};
 
-  Parameter loopvar  : {ty : type & fvar ty}.
+                      (** Allocation onto _archvar_ from the local variables *)
+                      localloc : list {fv : {ty : type & fvar ty} & (archvar (projT1 fv))};
 
-  Definition local := map (@projT1 {ty : type & fvar ty} _) localloc.
+                      loopvar  : {ty : type & fvar ty};
 
-  Parameter setup    : block fvar.
-  Parameter loop     : block fvar.
-  Parameter cleanup  : block fvar.
+                      setup    : block fvar;
+                      loop     : block fvar;
+                      cleanup  : block fvar
+                    }.
 
-  Definition usedvars := Ensembles.Add _
-                                       (Union _
-                                              (Union _ (bvars setup) (bvars loop))
-                                              (bvars cleanup))
-                                       loopvar.
+(** #####################
+These things could actually stay right here *)
 
-  (* ## Can be changed to use listSet and a disjoint union prop from the Ensemble library *)
-  Parameter allUsedListed : forall v : (sigT fvar), Ensembles.In _ usedvars v ->
-                                                    or (In v param) (In v local).
-  
-End Function.
+Definition local {v : varT} (f : Function v) := map (@projT1 {ty : type & fvar f ty} _) (localloc f).
+
+Definition usedvars {v : varT} (f : Function v) := Ensembles.Add _
+                                                                                                                              (Union _
+                                                                                                                                     (Union _ (bvars (setup f)) (bvars (loop f)))
+                                                                                                                                     (bvars (cleanup f)))
+                                                                                                                              (loopvar f).
+
+(* #######################
+Can be changed to use listSet and a disjoint union prop from the Ensemble library in case tactics get hard
+*)
+
+Definition allUsedListed := forall (v : varT) (f : Function v) (x : (sigT (fvar f))), Ensembles.In _ (usedvars f) x ->
+                                                  or (In x (param f)) (In x (local f)).
+
+(* -----------------------
+Tactics needed for this proof obligation that callconv will generate
+*)

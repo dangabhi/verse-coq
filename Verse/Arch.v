@@ -13,8 +13,21 @@ Module Type ARCH.
 
   (** The registers for this architecture *)
 
-  Parameter var  : varT.
+  Parameter reg : varT.
+  Parameter stack : varT.
 
+  (* #####################
+     The archvar to be passed to functions would be something like this
+  *)
+  Inductive farchvar : varT :=
+  | rv (ty : type) : reg ty -> farchvar ty
+  | sv (ty : type) : farchvar ty
+  .
+
+  Inductive var  : varT :=
+  | r (ty : type)  : reg ty -> var ty
+  | s (ty : type)  : stack ty -> var ty
+  .
 
   (** Encode the architecture specific restrictions on the instruction set **)
 
@@ -28,7 +41,9 @@ Module Type ARCH.
 
   (** Generate code with assurance of well formedness **)
 
-  (* ## Could have a notation for @sigT type and projT1 *)
+  (* #####################
+     Could have a notation for @sigT type and projT1 
+  *)
 
   Parameter callConv : forall {fvar} (param : list (sigT fvar)) v, In v param ->  var (projT1 v).
    
