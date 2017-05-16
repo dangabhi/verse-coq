@@ -19,44 +19,41 @@ Fixpoint listSet {A : Type} (l : list A) : Ensemble A :=
 The archvar that is passed to Function has to be the one with a dummy stack provided. The Arch module type should construct out of it's register and stack parameters a full archvar and a dummy archvar
  *)
 
+Fixpoint fblock (l : list type) :=
+  forall (v : varT),
+  (fix fbt (l : list type) :=
+    match l with
+    | []      => block v
+    | t :: lt => v t -> fbt lt
+    end) l.
+
 Record Function (archvar : varT) := func
                     {
                       name     : string;
 
                       (** The variable type on which the function body is parametrized *)
-                      fvar     : type -> Type;
+                      param    : list type;
 
                       (** The ordered list of parameters of the function *)
-                      param    : list {ty : type & fvar ty};
+                      local    : list type;
 
                       (** Allocation onto _archvar_ from the local variables *)
-                      localloc : list {fv : {ty : type & fvar ty} & (archvar (projT1 fv))};
 
-                      loopvar  : {ty : type & fvar ty};
+                      localloc : {l : list (sigT archvar) | map (@projT1 _ archvar) l = local};
+                      
+                      (* -----------------------
+                      Tactics needed for this proof obligation
+                      *)
 
-                      setup    : block fvar;
-                      loop     : block fvar;
-                      cleanup  : block fvar
+                      loopvar  : {i | i < length local};
+
+                      setup    : fblock (param ++ local);
+                      loop     : fblock (param ++ local);
+                      cleanup  : fblock (param ++ local);
                     }.
 
-(** #####################
-These things could actually stay right here *)
+Definition makeb {l : list type} (fb : fblock l) {v : varT} (alloc : {lv : list (sigT v) | map (@projT1 _ v) lv = l}) : block v.
 
-Definition local {v : varT} (f : Function v) := map (@projT1 {ty : type & fvar f ty} _) (localloc f).
-
-Definition usedvars {v : varT} (f : Function v) := Ensembles.Add _
-                                                                                                                              (Union _
-                                                                                                                                     (Union _ (bvars (setup f)) (bvars (loop f)))
-                                                                                                                                     (bvars (cleanup f)))
-                                                                                                                              (loopvar f).
-
-(* #######################
-Can be changed to use listSet and a disjoint union prop from the Ensemble library in case tactics get hard
-*)
-
-Definition allUsedListed := forall (v : varT) (f : Function v) (x : (sigT (fvar f))), Ensembles.In _ (usedvars f) x ->
-                                                  or (In x (param f)) (In x (local f)).
-
-(* -----------------------
-Tactics needed for this proof obligation that callconv will generate
+(* ########################
+I am trying to write this yet.
 *)

@@ -45,8 +45,15 @@ Module Type ARCH.
      Could have a notation for @sigT type and projT1 
   *)
 
-  Parameter callConv : forall {fvar} (param : list (sigT fvar)) v, In v param ->  var (projT1 v).
-   
+  Parameter callConv : forall lt, {lv : list (sigT farchvar) | map (@projT1 _ farchvar) lv = lt}.
+
+  (* #####################
+     The following would be the stack allocator that computes offsets 
+     given the complete allocation 'list'. However I cannot think of 
+     what proof obligation I want the function to satisfy.
+  *)
+  Parameter stalloc  : forall (l : list (sigT farchvar)), list (sigT var).
+
   Parameter generate : forall b : block var, wftypesB b -> wfvarB b -> wfinstrB b -> string.
   
   (**
