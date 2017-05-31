@@ -36,9 +36,19 @@ Module Type ARCH.
 
   Parameter callConv : forall {p l : list type}, betaT var (p ++ l).
 
-  Definition alloc (p lv lr : list type) (t : type) (lalloc : @betaT reg lr) (f : function p lv lr t) : FB var t :=
+  (** 
+     Alloc instantiates a function into a FB with the assumption that the 
+     loopvar is allocated on stack 
+  **)
+  Definition alloc (p lv lr : list type) (t : type) (lalloc : betaT reg lr) (f : function p lv lr t) : FB var t :=
     (lalloc _) (lam_cv r (callConv _ ((tr f) var))).
- 
+
+  (** 
+    Alloc instantiates a function into a FB with the assumption that the 
+    loopvar is allocated in a register by the user
+  **)
+  Definition alloc' (p lv lr : list type) (t : type) (lalloc : betaT reg (t :: lr)) (f : function p lv lr t) : FB var t :=
+    (lalloc _) (lam_cv r (callConv _ ((tr' f) var))).
 
   (** Generate code with assurance of well formedness **)
   Parameter generate : forall b : block var, wftypesB b -> wfvarB b -> wfinstrB b -> string.
