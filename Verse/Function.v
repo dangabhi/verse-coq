@@ -1,7 +1,6 @@
 Require Import Types.Internal.
 Require Import Syntax.
 Require Import Language.
-Require Import Arch.
 Require Import String.
 Require Import Coq.Sets.Ensembles.
 Require Import List.
@@ -10,67 +9,97 @@ Require Import Basics.
 
 Set Implicit Arguments.
 
-Fixpoint listSet {A : Type} (l : list A) : Ensemble A :=
+Record FB (v : varT) t := fb
+                                {
+                                  pre    : block v;
+                                  lv     : v t;
+                                  rep    : block v;
+                                  post   : block v;
+                                }.
+
+Record Function (v : varT) t    := func
+                                {
+                                  setup    : block v;
+                                  loop     : v t -> block v;
+                                  cleanup  : block v;
+                                }.
+
+Fixpoint lamT (v : varT) (l : list type) (T : Type) : Type :=
   match l with
-  | [] => Empty_set _
-  | a :: lt => Ensembles.Add _ (listSet lt) a
+  | [] => T
+  | ty :: lt => v ty -> lamT v lt T
   end.
 
-Fixpoint fbv (v : varT) (l : list type) :=
-  match l with
-  | [] => block v
-  | t :: lt => v t -> fbv v lt
-  end.
+Definition betaT v l := forall T, lamT v l T -> T.
 
-Definition fblock (l : list type) :=
-  forall (v : varT), fbv v l.
+Definition function (p lv lr : list type) t :=
+  forall (v : varT), lamT v (p ++ lv ++ lr) (Function v t).
 
-(** #######################
-The archvar that is passed to Function has to be the one with a dummy stack provided. The Arch module type should construct out of it's register and stack parameters a full archvar and a dummy archvar
+(*
+I could not write any of the below without proof mode. Have not taken time
+to make the proofs clean, concentrated on completion.
  *)
 
-Record Function (archvar : varT) := func
-                    {
-                      name     : string;
 
-                      (** The variable type on which the function body is parametrized *)
-                      param    : list type;
+(* A list-like constructor for betaT *)
+Definition beta_app v t (vt : v t) (l : list type) (b : betaT v l) : betaT v (t :: l).
+unfold betaT. unfold lamT. fold lamT.
+exact (fun T f => b T (f vt)).
+Qed.
 
-                      (** The ordered list of parameters of the function *)
-                      local    : list type;
 
-                      (** Allocation onto _archvar_ from the local variables *)
+(* lamT 'commutes' with ++ *)
+Lemma lamT_app : forall {v} {l1 l2} {T}, lamT v (l1 ++ l2) T = lamT v l1 (lamT v l2 T).
+Proof.
+  intros.
+  induction l1.
+  trivial.
+  unfold lamT. simpl. fold lamT.
+  rewrite IHl1.
+  trivial.
+Qed.
 
-                      localloc : {l : list (sigT archvar) | map (@projT1 _ archvar) l = local};
-                      
-                      (* -----------------------
-                      Tactics needed for this proof obligation
-                      *)
-
-                      loopvar  : {i | i < length local};
-
-                      setup    : fblock (param ++ local);
-                      loop     : fblock (param ++ local);
-                      cleanup  : fblock (param ++ local);
-                    }.
-
-Lemma makebv {l : list type} {v : varT} (fb : fbv v l)  (alloc : {lv : list (sigT v) | map (@projT1 _ v) lv = l}) : block v.
+(* lamT is funco T *)
+Definition lamFT {T T'} (f : T -> T') {v l} : (lamT v l T) -> (lamT v l T').
   induction l.
-  exact fb.
-  unfold fbv in fb.
-  destruct alloc.
-  induction x; simpl in e.
-  apply nil_cons in e. contradiction.
-  injection e; intros.
-  destruct a0.
-  simpl in H0.
-  assert (v0is : v a).
-  subst a. exact v0.
-  pose (fbn := fb v0is).
-  fold fbv in fbn.
-  exact (IHl fbn (exist _ x H)).
+  eauto.
+  unfold lamT. simpl. fold lamT.
+  intros. exact (IHl (X X0)).
 Qed.
 
-Definition makeb {l : list type} (fb : fblock l) {v : varT} (alloc : {lv : list (sigT v) | map (@projT1 _ v) lv = l}) : block v.
-exact (makebv (fb v) alloc).
+(* lamT is contravariantly functorial on v *)
+Lemma lam_cv {v w} {l} {T} (f : subT w v) : lamT v l T -> lamT w l T.
+Proof.
+  induction l.
+  trivial.
+  unfold lamT. simpl. fold lamT.
+  intros.
+  exact (IHl (X (f _ X0))).
 Qed.
+
+(* Best explained on call *)
+Definition tr' v l t : lamT v l (Function v t) -> lamT v ([t] ++ l) (FB v t).
+  intros.
+  unfold lamT. simpl. fold lamT.
+  induction l.
+  simpl. simpl in X. 
+  exact (fun x => fb _ (setup X) x (loop X x) (cleanup X)).
+  simpl. simpl in X.
+  exact (fun x y => IHl (X y) x).
+Qed.
+
+Definition tr {p lv lr} t (f : function p lv lr t) : forall v, lamT v (p ++ lv ++ [t]) (lamT v lr (FB v t)).
+  intros.
+  unfold function in f.
+  rewrite app_assoc in f.
+  assert (f' := f v).
+  rewrite lamT_app in f'.
+  assert (f'':= lamFT (tr' v lr t) f').
+  rewrite <- lamT_app in f''.
+  rewrite app_assoc in f''.
+  rewrite lamT_app in f''.
+  rewrite app_assoc.
+  exact f''.
+Qed.
+
+
