@@ -110,11 +110,32 @@ exact (fun x => (lamFT (cons (existT _ _ x)) IHl2)).
 exact (fun _ => IHl1).
 Defined.
 
+(* appends the l2 vars into the param list of the FB *)
 Definition add_plist {v} {l1 l2 l3} {t} (f : lamT v (l1 ++ l2 ++ l3) (FB v t)) : lamT v (l1 ++ l2 ++ l3) (FB v t) :=
-  lamF (lamFT (fun l f => fb t (param f ++ l) (local f) (pre f) (lv f) (rep f) (post f)) (make_list v l1 l2 l3)) f.
-  
+  lamF (lamFT (fun l f =>
+                 {|
+                   param := param f ++ l;
+                   local := local f;
+                   pre   := pre f;
+                   lv    := lv f;
+                   rep   := rep f;
+                   post  := post f;
+                 |}
+              ) (make_list v l1 l2 l3)) f.
+
+(* appends the l2 vars into the local list of the FB *)
 Definition add_llist {v} {l1 l2 l3} {t} (f : lamT v (l1 ++ l2 ++ l3) (FB v t)) : lamT v (l1 ++ l2 ++ l3) (FB v t) :=
-  lamF (lamFT (fun l f => fb t (param f) (local f ++ l) (pre f) (lv f) (rep f) (post f)) (make_list v l1 l2 l3)) f.
+  lamF (lamFT (fun l f =>
+                 {|
+                   param := param f;
+                   local := local f ++ l;
+                   pre   := pre f;
+                   lv    := lv f;
+                   rep   := rep f;
+                   post  := post f;
+                 |}
+              ) (make_list v l1 l2 l3)) f.
+
 
 (* 
 Breaks up the lamT parametrizing a Function into two lamT's which would be
