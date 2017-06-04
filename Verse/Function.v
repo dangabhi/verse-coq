@@ -23,11 +23,9 @@ Record FB (v : varT) t := fb
                             {
                               param    : list (sigT v);
                               local    : list (sigT v);
+                              loopvar  : sigT v;
 
-                              pre    : block v;
-                              lv     : v t;
-                              rep    : block v;
-                              post   : block v;
+                              fn       : Function v t;
                             }.
 
 (* v l1 -> v l2 -> ... -> T *)
@@ -79,26 +77,6 @@ Proof.
   exact (IHl (X (f _ X0))).
 Qed.
 
-(* Constructs a parametrized FB from a parametrized Function *)
-Definition beta_loop v l t (lp ll : list (sigT v)) : lamT v l (Function v t) -> lamT v ([t] ++ l) (FB v t).
-  intros.
-  unfold lamT. simpl. fold lamT.
-  induction l.
-  simpl. simpl in X. 
-  exact (fun x => fb _ lp ll (setup X) x (loop X x) (cleanup X)).
-  simpl. simpl in X.
-  exact (fun x y => IHl (X y) x).
-Qed.
-
-Definition lamF {v} {l} {T T'} (fl : lamT v l (T -> T')) (f : lamT v l T) : lamT v l T'.
-  induction l.
-  exact (fl f).
-  unfold lamT; simpl; fold lamT.
-  unfold lamT in fl, f. simpl in fl, f. fold lamT in fl, f.
-  intros.
-  exact (IHl (fl X) (f X)).
-Qed.
-
 (* Might be possible to write this in function mode *)
 Definition make_list v l1 l2 l3 : lamT v (l1 ++ l2 ++ l3) (list (sigT v)).
 induction l1.  
@@ -110,79 +88,27 @@ exact (fun x => (lamFT (cons (existT _ _ x)) IHl2)).
 exact (fun _ => IHl1).
 Defined.
 
-(* appends the l2 vars into the param list of the FB *)
-Definition add_plist {v} {l1 l2 l3} {t} (f : lamT v (l1 ++ l2 ++ l3) (FB v t)) : lamT v (l1 ++ l2 ++ l3) (FB v t) :=
-  lamF (lamFT (fun l f =>
-                 {|
-                   param := param f ++ l;
-                   local := local f;
-                   pre   := pre f;
-                   lv    := lv f;
-                   rep   := rep f;
-                   post  := post f;
-                 |}
-              ) (make_list v l1 l2 l3)) f.
-
-(* appends the l2 vars into the local list of the FB *)
-Definition add_llist {v} {l1 l2 l3} {t} (f : lamT v (l1 ++ l2 ++ l3) (FB v t)) : lamT v (l1 ++ l2 ++ l3) (FB v t) :=
-  lamF (lamFT (fun l f =>
-                 {|
-                   param := param f;
-                   local := local f ++ l;
-                   pre   := pre f;
-                   lv    := lv f;
-                   rep   := rep f;
-                   post  := post f;
-                 |}
-              ) (make_list v l1 l2 l3)) f.
-
-
-(* 
-Breaks up the lamT parametrizing a Function into two lamT's which would be
-instantiated by callConv and lalloc respectively.
-This is with the assumption that the loopvar is allocated on the stack by the callConv.
-*)
-
-Definition tr {p lv lr} t (f : function p lv lr t) : forall v, lamT v (p ++ lv ++ [t]) (lamT v lr (FB v t)).
+Definition lamF {v} {l} {T T'} (fl : lamT v l (T -> T')) (f : lamT v l T) : lamT v l T'.
+  induction l.
+  exact (fl f).
+  unfold lamT; simpl; fold lamT.
+  unfold lamT in fl, f. simpl in fl, f. fold lamT in fl, f.
   intros.
-  unfold function in f.
-  rewrite app_assoc in f.
-  assert (f1 := f v).
-  rewrite lamT_app in f1.
-  assert (f2 := lamFT (beta_loop lr t [] []) f1).
-  rewrite <- lamT_app in f2.
-  rewrite <- app_assoc in f2.
-  assert (f3 := @add_plist _ [] p _ _ f2).
-  assert (f4 := @add_llist _ p lv _ _ f3).
-  assert (f4': lamT v ((p ++ lv ++ [t]) ++ lr ++ []) (FB v t)).
-  rewrite app_nil_r. rewrite <- ?app_assoc. exact f4.
-  assert (f5 :=@add_llist _ (p ++ lv ++ [t]) lr [] _ f4').
-  rewrite app_nil_r in f5.
-  rewrite lamT_app in f5. exact f5.
+  exact (IHl (fl X) (f X)).
 Qed.
 
-(*
-Does the same as above but with the assumption that loopvar is allocated on a register
-and by the user.
-*)
+Parameter get_lv : forall v l1 t l2, lamT v (l1 ++ [t] ++ l2) (sigT v).
+Parameter add_dummy : forall v l1 t l2 T, lamT v (l1 ++ l2) T -> lamT v (l1 ++ [t] ++ l2) T.
 
-
-Definition tr' {p lv lr} t (f : function p lv lr t) : forall v, lamT v (p ++ lv) (lamT v (t :: lr) (FB v t)).
-  intros.
+(* Constructs a parametrized FB from a parametrized Function *)
+Definition internalize {p lv lr} t (f : function p lv lr t) : forall v, lamT v (p ++ lv ++ [t] ++ lr) (FB v t).
   unfold function in f.
+  intros.
+  assert (ll := make_list v p (lv ++ [t] ++ lr) []).
+  assert (lp := make_list v [] p (lv ++ [t] ++ lr)).
+  assert (loopvar := get_lv v (p ++ lv) t lr).
+  simpl in ll, lp, loopvar. rewrite app_nil_r in ll. rewrite <- app_assoc in loopvar.
   rewrite app_assoc in f.
-  assert (f1 := f v).
-  rewrite lamT_app in f1.
-  assert (f2 := lamFT (beta_loop lr t [] []) f1).
-  rewrite <- lamT_app in f2.
-  rewrite <- app_assoc in f2.
-  assert (f3 := @add_plist _ [] p _ _ f2).
-  assert (f4 := @add_llist _ p lv _ _ f3).
-  assert (f4': lamT v ((p ++ lv ++ [t]) ++ lr ++ []) (FB v t)).
-  rewrite app_nil_r. rewrite <- ?app_assoc. exact f4.
-  assert (f5 := @add_llist _ _ lr [] _ f4').
-  rewrite <- ?app_assoc in f5.
-  rewrite app_assoc in f5.
-  rewrite lamT_app in f5. rewrite app_nil_r in f5. exact f5.
-Qed.
+  assert (ft := add_dummy _ (p ++ lv) t lr _ (f v)). rewrite <- app_assoc in ft.
+  exact (lamF (lamF (lamF (lamFT (@fb v t) ll) lp) loopvar) ft).
 
