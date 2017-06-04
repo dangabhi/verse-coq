@@ -39,9 +39,10 @@ Module Type ARCH.
   (** 
      Alloc instantiates a function into a FB with the assumption that the 
      loopvar is allocated on stack 
-  **)
+   **)
+
   Definition alloc' (p lv lr : list type) (t : type) (lalloc : betaT reg lr) (f : function p lv lr t) : FB var t :=
-    (lalloc _) (lam_cv r (callConv _ ((tr f) var))).
+    (lalloc _) (lam_cv r (callConv _ ((internalize f) var))). (** still needs a juggler **)
 
   (** 
     Alloc instantiates a function into a FB with the assumption that the 
