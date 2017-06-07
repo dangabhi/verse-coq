@@ -41,10 +41,8 @@ Section Function.
   Definition betaT l := forall T, lamT l T -> T.
 
   (* A list-like constructor for betaT *)
-  Lemma beta_app t (vt : v t) (l : list type) (b : betaT l) : betaT (t :: l).
-    unfold betaT. unfold lamT. fold lamT.
-    exact (fun T f => b T (f vt)).
-  Qed.
+  Definition beta_app t (vt : v t) l (b : betaT l) : betaT (t :: l) :=
+    fun T f => b T (f vt).
 
   (* lamT 'commutes' with ++ *)
   Lemma lamT_app : forall {l1 l2} {T}, lamT (l1 ++ l2) T = lamT l1 (lamT l2 T).
@@ -56,18 +54,30 @@ Section Function.
     rewrite IHl1.
     trivial.
   Qed.
+
   (* lamT is functorial on T *)
-  Definition lamFT {T T'} (f : T -> T') l : (lamT l T) -> (lamT l T').
-    induction l.
-    eauto.
-    unfold lamT. simpl. fold lamT.
-    intros. exact (IHl (X X0)).
-  Defined.
+  Fixpoint lamFT {T T'} (f : T -> T') l : (lamT l T) -> (lamT l T') :=
+    match l return (lamT l T -> lamT l T') with
+    | [] => fun L => f L
+    | t :: lt => fun L => (fun x => lamFT f lt (L x))
+    end.
 
   Arguments lamFT {T T'} _ {l} _.
 
   (* Might be possible to write this in function mode *)
   Definition make_list l1 l2 l3 : lamT (l1 ++ l2 ++ l3) (list (sigT v)).
+    (*
+    match l1 return lamT (l1 ++ l2 ++ l3) _ with
+    | [] => match l2 return lamT (l2 ++ l3) _ with
+            | [] => match l3 return lamT l3 _ with
+                    | [] => []
+                    | _ :: lt3 => fun x => make_list [] [] lt3
+                    end
+            | t :: lt2 => fun x => lamFT (cons (existT _ _ x)) (make_list [] lt2 l3)
+            end
+    | _ :: lt1 => fun x => make_list lt1 l2 l3
+    end.
+     *)
     induction l1.  
     induction l2.
     induction l3.
@@ -77,7 +87,12 @@ Section Function.
     exact (fun _ => IHl1).
   Defined.
 
-  Definition lamF {l} {T T'} (fl : lamT l (T -> T')) (f : lamT l T) : lamT l T'.
+
+  Fixpoint lamF {l} {T T'} : lamT l (T -> T') -> lamT l T -> lamT l T' :=
+    match l return lamT l _ -> lamT l _ -> lamT l _  with
+    | [] => fun fl f => fl f
+    | t :: lt => fun fl f => fun x => (lamF (fl x) (f x))
+    end.
     induction l.
     exact (fl f).
     unfold lamT; simpl; fold lamT.
