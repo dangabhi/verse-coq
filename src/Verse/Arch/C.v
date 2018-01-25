@@ -127,7 +127,7 @@ Section PrintingInstruction.
     | _                                  => doc a <_> opDoc o <> EQUALS <_> y
     end.
 
-  Global Instance assignment_C_print : PrettyPrint (assignment cvar) | 0
+  Global Instance assignment_C_print : PrettyPrint (assignment cvar)
     := { doc := fun assgn =>  match assgn with
                               | assign3 o x y z => CAssign o x (rval y) (rval z)
                               | update2 o x y   => CUpdate o x (rval y)
@@ -146,7 +146,7 @@ Section PrintingInstruction.
                               end
        }.
 
-  Global Instance instruction_C_print : PrettyPrint (instruction cvar) | 0
+  Global Instance instruction_C_print : PrettyPrint (instruction cvar)
     := { doc := fun i => match i with
                          | assign a => doc a
                          end
