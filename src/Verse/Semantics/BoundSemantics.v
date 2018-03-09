@@ -3,6 +3,7 @@ Require Import Verse.Types.Internal.
 Require Import Verse.Types.
 Require Import Verse.Language.Operators.
 Require Import Verse.Error.
+Require Import Verse.Semantics.
 Require Verse.Semantics.BoundedOperations.
 
 Require Import Arith.
@@ -52,3 +53,5 @@ Module BoundedOps <: OP_SEMANTICS (BoundWord).
     end.
 
 End BoundedOps.
+
+Module BoundSemantics (C : CURSOR) := Semantics C BoundWord ConstBounds BoundedOps.
