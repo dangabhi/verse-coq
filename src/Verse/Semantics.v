@@ -79,6 +79,9 @@ Module Semantics (C : CURSOR) (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O :
 
     Definition instructionDenote (i : instruction v) (S : State) : State + {StateError} :=
       let '{| crsr := SC; env := SE |} := S in
+      let updateCursor S : State + {StateError} := (fun S => let '{| crsr := SC; env := SE |} := S in
+                                                             {| crsr := C.update SC; env := SE |})
+                                                     <$> S in
       let pushErr Err T (p : T * T + {Err}) := match p with
                                               | {- (a, b) -} => ({- a -}, {- b -})
                                               | error e      => (error e, error e)
@@ -99,42 +102,42 @@ Module Semantics (C : CURSOR) (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O :
       let validatePair {k} {ty : type k} (a1 a2 : larg v _ ty) val :=
           let '(val1, val2) := pushErr _ _ val in
           S' <- validate a1 val1 S; validate a2 val2 S' in
-
-      match i with
-      | assign ass => match ass with
-                      | extassign4 op la1 la2 ra1 ra2 ra3 =>
-                        validatePair la1 la2 (OP.opDenote _ op
-                                                          <$> (argDenote S ra1)
-                                                          <*> (argDenote S ra2)
-                                                          <*> (argDenote S ra3))
-                      | extassign3 op la1 la2 ra1 ra2     =>
-                        validatePair la1 la2 (OP.opDenote _ op
-                                                          <$> (argDenote S ra1)
-                                                          <*> (argDenote S ra2))
-                      | assign3 op la ra1 ra2 => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S ra1)
-                                                                          <*> (argDenote S ra2))
-                                                          S
-                      | assign2 op la ra1     => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S ra1))
-                                                          S
-                      | update2 op la ra1     => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S la)
-                                                                          <*> (argDenote S ra1))
-                                                          S
-                      | update1 op la         => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S la))
-                                                          S
-                      end
-      | moveTo x ix ra => largUpdate (var ra)
-                                     (error (InvalidatedAt ra SC i))
-                                     <$>
-                                     validate (index x ix) (inleft <$> (@argDenote S _ _ rval (var ra)))
-                                     S
-      | CLOBBER ra     => {- largUpdate (var ra)
-                                        (error (InvalidatedAt ra SC i))
-                                        S -}
-      end.
+      updateCursor (
+          match i with
+          | assign ass => match ass with
+                          | extassign4 op la1 la2 ra1 ra2 ra3 =>
+                            validatePair la1 la2 (OP.opDenote _ op
+                                                              <$> (argDenote S ra1)
+                                                              <*> (argDenote S ra2)
+                                                              <*> (argDenote S ra3))
+                          | extassign3 op la1 la2 ra1 ra2     =>
+                            validatePair la1 la2 (OP.opDenote _ op
+                                                              <$> (argDenote S ra1)
+                                                              <*> (argDenote S ra2))
+                          | assign3 op la ra1 ra2 => validate la (OP.opDenote _ op
+                                                                              <$> (argDenote S ra1)
+                                                                              <*> (argDenote S ra2))
+                                                              S
+                          | assign2 op la ra1     => validate la (OP.opDenote _ op
+                                                                              <$> (argDenote S ra1))
+                                                              S
+                          | update2 op la ra1     => validate la (OP.opDenote _ op
+                                                                              <$> (argDenote S la)
+                                                                              <*> (argDenote S ra1))
+                                                              S
+                          | update1 op la         => validate la (OP.opDenote _ op
+                                                                              <$> (argDenote S la))
+                                                              S
+                          end
+          | moveTo x ix ra => largUpdate (var ra)
+                                         (error (InvalidatedAt ra SC i))
+                                         <$>
+                                         validate (index x ix) (inleft <$> (@argDenote S _ _ rval (var ra)))
+                                         S
+          | CLOBBER ra     => {- largUpdate (var ra)
+                                            (error (InvalidatedAt ra SC i))
+                                            S -}
+          end).
 
   End InstructionDenote.
 
