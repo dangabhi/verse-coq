@@ -18,6 +18,12 @@ Require Import Arith.
 
 Set Implicit Arguments.
 
+Instance CTypeDenote : typeC (fun k : kind => (CType k + { UnsupportedType }))
+   := {| mkWord      := wordToCWord;
+         mkMultiword := fun m n  => error (unsupported (multiword m n));
+         mkArray     := fun n _ t => CArray n <$> t
+      |}.
+
 Definition CConstant {k} (ty : CType k) : Type :=
   match ty with
   | uint8_t     => Word.bytes 1
