@@ -57,7 +57,28 @@ Definition constant (ty : type direct) :=
   let _ := mkTypeDenote StandardWord.wordDenote
   in typeDenote ty.
 
+Module Type CONST_SEMANTICS (W : WORD_SEMANTICS).
+  Parameter constWordDenote : forall n, StandardWord.wordDenote n -> W.wordDenote n.
+End CONST_SEMANTICS.
 
+Module StandardConsts <: CONST_SEMANTICS StandardWord.
+  Definition constWordDenote n := @id (StandardWord.wordDenote n).
+End StandardConsts.
+
+(* To lift the interpretation of constant words to other types *)
+Module ConstDenote (W : WORD_SEMANTICS) (C : CONST_SEMANTICS W).
+
+  Definition TypeDenote := mkTypeDenote W.wordDenote.
+
+  Fixpoint constDenote {ty : type direct} :=
+    match ty in type direct return constant ty -> @typeDenote _ TypeDenote _ ty with
+    | word n        => @C.constWordDenote n
+    | multiword m n => Vector.map (@C.constWordDenote n)
+    end.
+
+End ConstDenote.
+
+(* begin hide *)
 
 Definition constant_doc (ty : type direct)  : constant ty -> Doc.
   refine( match ty with
