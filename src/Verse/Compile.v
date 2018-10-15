@@ -118,7 +118,7 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
                            end
              | @moveTo _ b e ty x i lv => collectErr (checkApp ty (fun p => checkApp (array b e ty)
                                                                                      (fun p' => {- mkMoveTo b e _ _ (proj1_sig i) (vTrans p lv) -})))
-             | CLOBBER _  => {- mkNOP -}
+             | clobber _  => {- mkNOP -}
              end
       ;
       rewrite <- (getTgetsT p).
@@ -126,8 +126,11 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
       exact (@vTrans _ (array b e ty) p' x).
     Defined.
 
-    Definition compileInstructions insts :=
-      let compile := fun i => liftErr (instDenote i) in
+    Definition compileCode (tyD : typeC TypeDenote) (insts : @code tyD v) :=
+      let compile := fun cl => match cl with
+                               | annot _ => {- mkNOP -}
+                               | inst i  => instDenote i
+                               end in
       merge (List.map compile insts).
 
   End CodeDenote.
@@ -323,7 +326,8 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
     Arguments mkAlloc _ [nP nS nR parameterTypes stackTypes registerTypes] _ _ _ _.
 
     Section IteratorF.
-      
+
+      Variable tyD : typeC TypeDenote.
       Variable startState : F.frameState.
 
       (** Its parameters and stack variables *)
@@ -371,15 +375,15 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
 
     End IteratorF.
     
-    Arguments scopeLoopVar [nP nS nR] _ [parameterTypes stackTypes registerTypes] _ _ _.
+    Arguments scopeLoopVar [tyD nP nS nR] _ [parameterTypes stackTypes registerTypes] _ _ _.
     Arguments mkIAlloc _ [nP nS nR codeT parameterTypes stackTypes registerTypes] _ _ _ _ _ _.
 
     (** Compile generic Verse code into machine instructions *)
-    Definition compile {nP nL nR} name
+    Definition compile (tyD : typeC TypeDenote) {nP nL nR} name
                        (pts : Vector.t (some type) nP)
                        (lts : Vector.t (some type) nL)
                        (rts : Vector.t (some type) nR) regs f
-      := let vCode := fillVars pts lts rts code f in
+      := let vCode := fillVars pts lts rts (@code tyD) f in
          let state := F.emptyFrame name in
          pp *<- checkTypes pts;
            sp *<- checkTypes lts;
@@ -387,14 +391,14 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
            cc *<- mkAlloc state pp sp rp regs;
            let (finalState, alloc) := cc in
            let vTrans := makeVTrans alloc in
-           pair (F.description finalState) <$> compileInstructions vTrans vCode. 
+           pair (F.description finalState) <$> compileCode vTrans vCode.
 
-    Definition compileIterator {nP nL nR} ty name (pts : Vector.t (some type) nP)
+    Definition compileIterator (tyD : typeC TypeDenote) {nP nL nR} ty name (pts : Vector.t (some type) nP)
                (lts : Vector.t (some type) nL)
                (rts : Vector.t (some type) nR) regs iterF
       := let pts' := existT _ _ ty :: pts in
          let iterB := scopeLoopVar ty iterF in
-         let '(stp, proc, fnl) := fillVars pts' lts rts iterBlocks iterB in
+         let '(stp, proc, fnl) := fillVars pts' lts rts (@iterBlocks tyD) iterB in
          pT *<- checkTy ty;
            let S := F.iterateFrame name (getT pT) in
            let (iterVars, state) := S in
@@ -407,9 +411,9 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
              cc *<- mkIAlloc state pT loopvar pp sp rp regs;
              let (finalState, alloc) := cc in
              let vTrans := makeVTrans alloc in
-             mSetup <- compileInstructions vTrans stp;
-               mProcess <- compileInstructions vTrans proc;
-               mFinalise <- compileInstructions vTrans fnl;
+             mSetup <- compileCode vTrans stp;
+               mProcess <- compileCode vTrans proc;
+               mFinalise <- compileCode vTrans fnl;
                let mLoop := C.loopWrapper codeV countV mProcess in
                let mCode := List.app (List.app mSetup mLoop) mFinalise in
                {- pair (F.description finalState) mCode -}.
@@ -425,17 +429,17 @@ Module Compiler (A : ARCH) (F : FRAME A) (C : CODEGEN A).
          let (descr, code) := code in wrap descr (write code))
         <$> mCode.
 
-    Arguments compile [nP nL nR] _ _ _ [rts] _ _.
-    Arguments compileIterator [nP nL nR] _ _ _ _ [rts] _ _.
+    Arguments compile [tyD nP nL nR] _ _ _ [rts] _ _.
+    Arguments compileIterator [tyD nP nL nR] _ _ _ _ [rts] _ _.
 
   End Internal.
 
   Import Internal.
-  Ltac function s p l r := simple refine (show (@compile _ _ _ s _ _ _ _ _));
+  Ltac function s p l r := simple refine (show (@compile _ _ _ _ s _ _ _ _ _));
                            [> shelve | shelve | shelve
                             | declare p | declare l | declare r
                             | ..].
-  Ltac iterator i s p l r := simple refine (show (@compileIterator _ _ _ i s _ _ _ _ _));
+  Ltac iterator i s p l r := simple refine (show (@compileIterator _ _ _ _ i s _ _ _ _ _));
                              [> shelve | shelve | shelve
                               | declare p | declare l | declare r
                               | ..].
