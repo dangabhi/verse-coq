@@ -170,9 +170,11 @@ demands.
 *)
 
 Require Import Verse.Word.
-Definition stdWordDenote : nat -> Type := fun n => Word.bytes (2^n).
 
-Definition StandardSemantics : typeC TypeDenote := mkTypeDenote stdWordDenote.
+Module StandardWord <: WORD_SEMANTICS.
+  Definition wordDenote := fun n => Word.bytes (2^n).
+End StandardWord.
 
 Import Verse.PrettyPrint.
-Global Instance word_constant_pretty n : PrettyPrint (stdWordDenote n) := word_pretty (8 * 2^n).
+Global Instance word_constant_pretty n : PrettyPrint (StandardWord.wordDenote n)
+  := word_pretty (8 * 2^n).
