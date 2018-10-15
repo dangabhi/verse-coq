@@ -1,5 +1,6 @@
 Require Import Verse.
 Require Import Verse.CryptoLib.sha2.
+Require Import Verse.Semantics.StandardSemantics.
 Import Nat.
 Require Vector.
 Import VectorNotations.
@@ -271,7 +272,7 @@ h = temp + σ₀(a) + MAJ(a,b,c); >>
     End HashTransformation.
 
     Definition ALL_ROUNDS : code v := iterate Round.
-    Definition sha2 : iterator Block v :=
+    Definition sha2 : Iterator Block v :=
       {|
         setup   := LOAD_STATE;
         process := fun block => (LOAD_BLOCK block
