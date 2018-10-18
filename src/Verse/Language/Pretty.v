@@ -129,6 +129,8 @@ Notation "A 'HAS' X 'IN' E"
   := (ap (fun X => E) ((fst val) _ _ A))
        (at level 81, right associativity, only parsing).
 
+Notation "'REMEMBER' X" := (annot (remember X)) (at level 100).
+
 (**
 
 One another irritant in writing code is that the array indexing needs
