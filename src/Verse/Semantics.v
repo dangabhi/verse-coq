@@ -28,7 +28,7 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
     (* Data structure to encode the variable values for the structured
        ProxyVar variable type
     *)
-    Definition store := allocation (fun _ ty => @typeDenote _ tyDenote _ ty + {contextErr}) vT.
+    Definition store := allocation (fun _ => typeDenote) vT.
     (* Omitting the implicit typeClass for `typeDenote` triggers a bug *)
 
   End Store.
@@ -36,29 +36,33 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
   Arguments store [n] vT.
 
   (* Getting a variable value out of the store *)
-  Fixpoint eval `{vT : Vector.t (some type) n} (s : store vT)
+  Fixpoint eval (tyd : VariableT)
+                `{vT : Vector.t (some type) n} (s : allocation tyd vT)
                 `{ty : type k} (x : scopeVar vT ty)
-    : @typeDenote _ tyDenote _ ty + {contextErr} :=
-    match x in scopeVar vT0 ty0 return store vT0
-                                       -> @typeDenote _ tyDenote _ ty0 + {contextErr} with
-    | headVar _    => fun s0 => let '(vx, _) := s0 in vx
-    | restVar _ rx => fun s0 => let '(_, st) := s0 in eval st rx
+    : (tyd _ ty : Type) :=
+    match x in scopeVar vT0 ty0 return (allocation tyd vT0)
+                                       -> (tyd _ ty0 : Type) with
+    | headVar    => fun s0 => let '(vx, _) := s0 in vx
+    | restVar rx => fun s0 => let '(_, st) := s0 in eval _ st rx
     end s.
 
-  Fixpoint storeUpdate `(vT : Vector.t (some type) n)
+  Arguments eval [tyd n vT] _ [k ty] _.
+
+  Fixpoint storeUpdate (tyd : VariableT)
+                       `(vT : Vector.t (some type) n)
                        `{ty : type k} (var : scopeVar vT ty)
-    : (@typeDenote _ tyDenote _ ty + {contextErr} ->
-       @typeDenote _ tyDenote _ ty + {contextErr}) ->
-      store vT -> store vT :=
+    : ((tyd _ ty : Type) -> (tyd _ ty : Type)) ->
+      allocation tyd vT -> allocation tyd vT :=
     match var as var0 in scopeVar vT0 ty0 return
-          (@typeDenote _ tyDenote _ ty0 + {_}
-           -> @typeDenote _ tyDenote _ ty0 + {_})
-          -> store vT0 -> store vT0
+          ((tyd _ ty0 : Type)
+           -> tyd _ ty0 : Type)
+          -> allocation tyd vT0 -> allocation tyd vT0
     with
-    | headVar _    => fun f s => let '(vx, st) := s in (f vx, st)
-    | restVar _ rx => fun f s => let '(vx, st) := s in (vx, storeUpdate rx f st)
+    | headVar    => fun f s => let '(vx, st) := s in (f vx, st)
+    | restVar rx => fun f s => let '(vx, st) := s in (vx, storeUpdate _ rx f st)
     end.
 
+  Arguments storeUpdate [tyd n vT k ty] _ _ _.
 
   Section InstructionDenote.
 
@@ -69,19 +73,19 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
 
     Definition argDenote (S : store vT)
                          `{ty : type k} `(a : arg (scopeVar vT) aK ty)
-      : @typeDenote _ tyDenote _ ty + {contextErr} :=
-      match a in (arg _ _ ty) return @typeDenote _ tyDenote _ ty + {contextErr} with
-      | var av           => eval S av
-      | Language.Ast.const c => {- C.constDenote c -}
-      | index x i        => (fun y => nth_order y (proj2_sig i)) <$> eval S x
+      : typeDenote ty : Type := 
+      match a in (arg _ _ ty) return typeDenote ty with
+      | var av               => eval S av
+      | Language.Ast.const c => C.constDenote c
+      | index x i            => (fun y => nth_order y (proj2_sig i)) (eval S x)
       end.
 
     (* Auxiliary function to lift an arg value change to store *)
     Definition largUpdate `{ty : type k} (a : larg (scopeVar vT) ty)
-                          (val : @typeDenote _ tyDenote _ ty + {contextErr})
+                          (val : typeDenote ty : Type)
                           (S : store vT)
       : store vT :=
-      match a in arg _ lval ty  return @typeDenote _ tyDenote _ ty + {contextErr}
+      match a in arg _ lval ty  return (typeDenote ty : Type)
                                        -> store vT
       with
       | @var _ lval _ _ av        => fun val' => storeUpdate av
@@ -89,8 +93,7 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
                                                              S
       | @index _ lval  _ _ _ x i => fun val' => storeUpdate x
                                                          (fun vec =>
-                                                            X <- vec;
-                                                              replace_order X (proj2_sig i) <$> val')
+                                                            replace_order vec (proj2_sig i) val')
                                                          S
       end val.
 
@@ -105,67 +108,46 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
     .
 
     Fixpoint  instructionDenote (i : instruction (scopeVar vT)) (S : store vT) {struct i}
-      : (store vT) + {contextErr} :=
-      let pushErr `(p : T * T + {Err}) := match p with
-                                          | {- (a, b) -} => ({- a -}, {- b -})
-                                          | error e      => (error e, error e)
-                                          end in
-      let liftOpErr `(v : T + {O.OpError}) := match v with
-                                              | {- v -} => {- v -}
-                                              | error e => error Invalid
-                                              end in
-      (* Auxiliary functions to update arg values only when Valid *)
-      let validate `{ty : type k} (a : larg (scopeVar vT) ty) val S :=
-          match val with
-          | {- oval -} => {- largUpdate a (liftOpErr oval) S -}
-          | error e => error e
-          end in
-      let validatePair `{ty : type k} (a1 a2 : larg (scopeVar vT) ty) val :=
-          let '(val1, val2) := pushErr val in
-          S' <- validate a1 val1 S; validate a2 val2 S' in
-
+      : (store vT) :=
+      let updatePair `{ty : type k} (a1 a2 : larg (scopeVar vT) ty) val :=
+          let S' := largUpdate a1 (fst val) S in largUpdate a2 (snd val) S' in
       match i with
-      | increment la => validate la (OP.opDenote _ plus
-                                                 <$> (argDenote S la)
-                                                 <*> (argDenote S (Ast.const (one _))))
+      | increment la => largUpdate la (OP.opDenote _ plus
+                                                 (argDenote S la)
+                                                 (argDenote S (Ast.const (one _))))
                                  S
-      | decrement la => validate la (OP.opDenote _ minus
-                                                 <$> (argDenote S la)
-                                                 <*> (argDenote S (Ast.const (one _))))
+      | decrement la => largUpdate la (OP.opDenote _ minus
+                                                 (argDenote S la)
+                                                 (argDenote S (Ast.const (one _))))
                                  S
       | assign ass => match ass with
                       | extassign4 op la1 la2 ra1 ra2 ra3 =>
-                        validatePair la1 la2 (OP.opDenote _ op
-                                                          <$> (argDenote S ra1)
-                                                          <*> (argDenote S ra2)
-                                                          <*> (argDenote S ra3))
+                        updatePair la1 la2 (OP.opDenote _ op
+                                                          (argDenote S ra1)
+                                                          (argDenote S ra2)
+                                                          (argDenote S ra3))
                       | extassign3 op la1 la2 ra1 ra2     =>
-                        validatePair la1 la2 (OP.opDenote _ op
-                                                          <$> (argDenote S ra1)
-                                                          <*> (argDenote S ra2))
-                      | assign3 op la ra1 ra2 => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S ra1)
-                                                                          <*> (argDenote S ra2))
+                        updatePair la1 la2 (OP.opDenote _ op
+                                                          (argDenote S ra1)
+                                                          (argDenote S ra2))
+                      | assign3 op la ra1 ra2 => largUpdate la (OP.opDenote _ op
+                                                                          (argDenote S ra1)
+                                                                          (argDenote S ra2))
                                                           S
-                      | assign2 op la ra1     => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S ra1))
+                      | assign2 op la ra1     => largUpdate la (OP.opDenote _ op
+                                                                          (argDenote S ra1))
                                                           S
-                      | update2 op la ra1     => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S la)
-                                                                          <*> (argDenote S ra1))
+                      | update2 op la ra1     => largUpdate la (OP.opDenote _ op
+                                                                          (argDenote S la)
+                                                                          (argDenote S ra1))
                                                           S
-                      | update1 op la         => validate la (OP.opDenote _ op
-                                                                          <$> (argDenote S la))
+                      | update1 op la         => largUpdate la (OP.opDenote _ op
+                                                                          (argDenote S la))
                                                           S
                       end
-      | moveTo x ix ra => largUpdate (var ra)
-                                     (error Invalid)
-                                     <$>
-                                     validate (index x ix) (inleft <$> (@argDenote S _ _ rval (var ra)))
+      | moveTo x ix ra => largUpdate (index x ix) (@argDenote S _ _ rval (var ra))
                                      S
-      | clobber ra     => {- largUpdate (var ra)
-                                        (error Invalid)
-                                        S -}
+      | clobber ra     => S
       end.
 
   End InstructionDenote.
@@ -197,18 +179,20 @@ Module Semantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMANTICS
     Variable n : nat.
     Variable vT : Vector.t (some type) n.
 
-    Definition spec := (Prop * Prop * store vT)%type.
+    Definition storeE := allocation (fun _ ty => @typeDenote TypeDenote _ _ ty + {contextErr}) vT.
+    Definition spec := (Prop * Prop * storeE)%type.
 
     Variable st : store vT.
 
-    Definition annotationDenote (a : annotation (scopeVar vT)) (s : spec) : spec + {contextErr}:=
+    Set Printing Implicit.
+    Definition annotationDenote (a : annotation (scopeVar vT)) (s : spec) : spec :=
       let (ann, oldst) := s in
       let (ass, cl) := ann in
-      let ctxtP := (@eval _ _ st, @eval _ _ oldst) in
+      let ctxtP := (@eval _ _ _ st, @eval _ _ _ oldst) in
       match a with
-      | remember x => {- (ann, storeUpdate x (fun _ => eval st x) oldst) -}
-      | assert a   => (fun na => ((ass /\ na, cl), oldst)) <$> a ctxtP
-      | claim  c   => (fun nc : Prop => ((ass, cl /\ (ass -> nc)), oldst)) <$> c ctxtP
+      | remember x => (ann, storeUpdate x (fun _ => {- eval st x -}) oldst)
+      | assert a   => (fun na => ((ass /\ na, cl), oldst)) (a ctxtP)
+      | claim  c   => (fun nc : Prop => ((ass /\ nc, cl /\ (ass -> nc)), oldst)) (c ctxtP)
       end.
 
   End Annotate.
@@ -226,27 +210,36 @@ Module CodeSemantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMAN
     Variable vT : Vector.t (some type) n.
 
     (* The Type capturing the program state *)
-    Let state := (store vT * spec vT)%type.
+    Definition state := (store vT * spec vT)%type.
 
-    Let clDenote (cl : codeline (scopeVar vT)) (s : state) : state + {contextErr} :=
+    Definition clDenote (cl : codeline (scopeVar vT)) (s : state) : state :=
       let (st, sp) := s in
       match cl with
-      | annot a => (fun na => (st, na)) <$> annotationDenote st a sp
-      | inst  i => (fun ni => (ni, sp)) <$> instructionDenote i st
+      | annot a => (fun na => (st, na)) (annotationDenote st a sp)
+      | inst  i => (fun ni => (ni, sp)) (instructionDenote i st)
       end.
 
-    Definition codeDenote c init : Prop + {contextErr} :=
-      let fix mkInvalid {n} (v : Vector.t (some type) n) {struct v} : store v :=
-          match v as v' return store v' with
+    Functional Scheme clDenote_ind := Induction for clDenote Sort Type.
+
+    Definition codeDenote c s : state := List.fold_left
+                                           (fun s i => (clDenote i) s)
+                                           c
+                                           s.
+      
+    Definition codeCheck c init : Prop :=
+      let fix mkInvalid {n} (v : Vector.t (some type) n) {struct v} : storeE v :=
+          match v as v' return storeE v' with
           | []      => tt
-          | _ :: vt => (inright Invalid, mkInvalid vt)
+          | _ :: vt => (error Invalid, mkInvalid vt)
           end in
       let invst := mkInvalid vT in
-      (fun x => snd (fst (snd x))) <$>
-                                   List.fold_left
-                                   (fun s i => bind s (clDenote i))
-                                   (@fillDummy (@code _) _ vT c)
-                                   {- (init, ((True, True), invst)) -}.
+      (fun x => snd (fst (snd x))) (List.fold_left
+                                      (fun s i => (clDenote i) s)
+                                      c
+                                      (init, ((True, True), invst))).
+
+    Definition SAT c    := forall init, codeCheck c init.
+    Definition genSAT c := SAT (@fillDummy (@code _) _ vT c).
 
   End CodeDenote.
 
@@ -266,28 +259,34 @@ Module CodeSemantics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEMAN
   mapAlloc v1 _ (fun _ _ => @inleft _ Err) _ a.
 
   (* Recovers the specification corresponding to a code block
-     as a Prop or throws an error *)
-  Ltac extractProp func :=
+     as a Prop *)
+
+  Ltac extractSAT func :=
     let sc := fresh "sc" in
     simple refine (let sc : Vector.t (some type) _ := _ in _);
     [shelve | getScope func | idtac];
-    let st := fresh "st" in
-    refine (forall st : allocation (fun _ => typeDenote) sc, _ : Prop);
-    let perr := fresh "perr" in
-    simple refine (let perr : Prop + {contextErr} := _ in _);
-    [ exact (@codeDenote _ sc func (addErr contextErr _ _ st)) | idtac ];
-    exact (recover perr).
+    exact (genSAT sc func).
 
-  (* A starter to preface a proof attempt on a Prop extracted via
-     extractProp *)
-  Ltac simplify :=
+  Ltac breakStore :=
     repeat
       match goal with
-      | |- ?p              => unfold p
-      | |- forall _ : _, _ => intro
-      | a : _ * _ |- _    => destruct a
-      | _                  => simpl in *
+      | a : _ * _ |- _ => simpl in a; destruct a
+      | |- forall _ : _, _ => intro; simpl in * |-
       end.
+      
+  (* A starter to preface a proof attempt on a Prop extracted via
+     extractSAT *)
+  Ltac simplify :=
+    repeat
+      (match goal with
+      | |- ?p              => unfold p
+      | a : _ * _ |- _     => simpl in a; destruct a
+      | |- forall _ : _, _ => intro
+      | |- exists _ : _, _ => eapply ex_intro
+      | |- _ /\ _          => constructor
+      | |- _ = _           => constructor 
+      | _                  => simpl in *
+      end; repeat autounfold).
 
 End CodeSemantics.
 

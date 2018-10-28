@@ -104,17 +104,59 @@ Notation "( 'QUOT' A , 'REM' B ) ::= ( C : D ) [/] E" := (inst (assign (extassig
 
 (** Notations for annotations in code *)
 
-Class Context tyD v := val : context tyD v * context tyD v.
+Class Context tyD v := val : context tyD v * contextE tyD v.
 
+Class AnnType := mkAnn : forall T (P : T -> Prop), (T -> Prop) * (T -> Prop) -> Prop.
+Arguments mkAnn [_ T] _ _.
+
+Notation "A 'HAD' X ; E" := (mkAnn (fun X' => (snd val) _ _ A = {- X' -})
+                                   (fun X => (snd val) _ _ A = {- X -}, fun X => E))
+                              (at level 81, right associativity, only parsing).
+
+
+Notation "A 'HAD' X 'IN' E" := (mkAnn (fun X' => (snd val) _ _ A = {- X' -})
+                                   (fun X => (snd val) _ _ A = {- X -}, fun X => E))
+                             (at level 81, right associativity, only parsing).
+
+
+Notation "'ASSUME' P" := (annot (assert (fun s : Context _ _ =>
+                                            ((fun _ : AnnType => P)
+                                               (fun _ _ notn => forall t, ((fst notn) t -> (snd notn) t))))
+                         )) (at level 100).
+
+Notation "'CLAIM' P" := (annot (claim (fun s : Context _ _ =>
+                                         ((fun _ : AnnType => P)
+                                            (fun _ _ notn => exists t, ((fst notn) t /\ (snd notn) t))))
+                        )) (at level 100).
+
+Notation "A 'HAS' X ; E"
+(*  := ((fun X => E) ((fst val) _ _ A)) *)
+  := (let X := (fst val) _ _ A in E)
+       (at level 81, right associativity, only parsing).
+
+Notation "A 'HAS' X 'IN' E"
+(*  := ((fun X => E) ((fst val) _ _ A)) *)
+  := (let X := (fst val) _ _ A in E)
+       (at level 81, right associativity, only parsing).
+
+
+(* Not sure why this does not work
+*)
+Notation "'Val' X" := ((fst val) _ _ X) (at level 50).
+(*
+*)
+
+(*
 Notation "'ASSUME' P" := (annot (assert (fun s : Context _ _ => P))) (at level 100).
 Notation "'CLAIM'  P" := (annot (claim (fun s : Context _ _ => P))) (at level 100). (* Check level *)
 
 Notation "A 'HAS' X ; E"
-  := (bind ((fst val) _ _ A) (fun X => E))
+  := (let X := (fst val) _ _ A in E)
        (at level 81, right associativity, only parsing).
 
 Notation "A 'HAD' X ; E"
-  := (bind ((snd val) _ _ A) (fun X => E))
+  := (exists X, (snd val) _ _ A = {- X -} /\ E)
+(*  := (bind ((snd val) _ _ A) (fun X => E))*)
        (at level 81, right associativity, only parsing).
 
 Notation "A 'IS' X ; E"
@@ -122,15 +164,18 @@ Notation "A 'IS' X ; E"
        (at level 81, right associativity, only parsing).
 
 Notation "A 'HAD' X 'IN' E"
-  := (ap (fun X => E) ((snd val) _ _ A))
+  := (exists X, (snd val) _ _ A = {- X -} /\ E)
+(*  := (ap (fun X => E) ((snd val) _ _ A))*)
        (at level 81, right associativity, only parsing).
 
 Notation "A 'HAS' X 'IN' E"
-  := (ap (fun X => E) ((fst val) _ _ A))
+  := (let X := (fst val) _ _ A in E)
        (at level 81, right associativity, only parsing).
+ *)
 
 Notation "'REMEMBER' X" := (annot (remember X)) (at level 100).
 
+Notation "'REMEMBER' ( X , .. , Y )" := (cons (annot (remember X)) .. (cons (annot (remember Y)) nil) ..) (at level 100).
 (**
 
 One another irritant in writing code is that the array indexing needs
