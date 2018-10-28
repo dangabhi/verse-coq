@@ -8,7 +8,7 @@ Require Import Verse.CryptoLib.sha2.
 Require Import Verse.CryptoLib.sha2.c.portable.
 
 Module Config <: CONFIG.
-  Definition Word := Word32.
+  Definition WordSize := 2 (*Word32*).
   Definition ROUNDS := 64.
   Definition KVec := [ Ox "428a2f98";
                        Ox "71374491";
@@ -99,6 +99,14 @@ End Config.
 
 Require Import Verse.Arch.C.
 Module SHA256 := SHA2 Config.
+
+Import StandardSemantics.
+
+Definition proof : SHA256.toProve.
+  unfold SHA256.toProve.
+  unfold scopeCodeCheck.
+  unfold codeCheck.
+  simplify.
 Import Config.
 
 Module Internal.

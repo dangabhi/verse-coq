@@ -111,9 +111,8 @@ program block is merely a list of instructions.
 
   Definition instructions := list instruction.
 
-  Inductive contextErr := Invalid.
-  Definition context := forall {k} {ty : type k}, v ty -> @typeDenote _ tyD _ ty + {contextErr}.
-  Definition ctxtP   := (context * context)%type.
+  Inductive contextErr : Prop := Invalid.
+  Definition context := forall {k} {ty : type k}, v ty -> @typeDenote _ tyD _ ty.
 
   (*
      This particular design choice allows one to define a valid Prop even
@@ -124,9 +123,10 @@ program block is merely a list of instructions.
      only unused Invalid values.
   *)
   Inductive annotation : Type :=
-  | remember : forall k (ty : type k), v ty -> annotation
-  | assert : (ctxtP -> Prop + {contextErr}) -> annotation
-  | claim  : (ctxtP -> Prop + {contextErr}) -> annotation
+  | remember : (context -> Prop) -> annotation
+  | newass : (context -> Prop) -> annotation
+  | addass : (context -> Prop) -> annotation
+  | forget : annotation
   .
 
   Inductive codeline : Type :=
@@ -181,11 +181,11 @@ program block is merely a list of instructions.
 End AST.
 
 Arguments Indices [v b e ty] _.
+Arguments forget [tyD v].
 Arguments annotation [tyD] _.
 Arguments codeline [tyD] _.
 Arguments inst [tyD v] _.
 Arguments code [tyD] _.
-Arguments remember [tyD v k ty] _.
 
 (* A macro to define an instruction block while being oblivious to
    semantic relevant details *)

@@ -28,24 +28,24 @@ Module NOps <: OP_SEMANTICS (NWord).
 
   Definition OpError := True.
 
-  Definition wordOpDenote la ra n (o : op la ra) : arityDenote OpError la ra (NWord.wordDenote n) :=
-    match o in op la0 ra0 return arityDenote OpError la0 ra0 (NWord.wordDenote n) with
-    | plus => fun a b => {- N.add a b -}
-    | minus => fun a b => {- N.sub a b -}
-    | mul => fun a b => {- N.mul a b -}
-    | exmul => fun a b => (error I, error I)
-    | quot => fun a b => {- N.div a b -}
-    | eucl => fun a b c => (error I, error I)
-    | rem => fun a b => {- N.modulo a b -}
-    | bitOr => fun a b => {- N.lor a b -}
-    | bitAnd => fun a b => {- N.land a b -}
-    | bitXor => fun a b => {- N.lxor a b -}
-    | bitComp => fun a => error I
-    | rotL m => fun b => error I
-    | rotR m => fun b => error I
-    | shiftL m => fun b => error I
-    | shiftR m => fun b => error I
-    | nop => fun b => {- b -}
+  Definition wordOpDenote la ra n (o : op la ra) : arityDenote la ra (NWord.wordDenote n) :=
+    match o in op la0 ra0 return arityDenote la0 ra0 (NWord.wordDenote n) with
+    | plus => fun a b => N.add a b
+    | minus => fun a b => N.sub a b
+    | mul => fun a b => N.mul a b
+    | exmul => fun a b => (1, 1)%N
+    | quot => fun a b => N.div a b
+    | eucl => fun a b c => (1, 1)%N
+    | rem => fun a b => N.modulo a b
+    | bitOr => fun a b => N.lor a b
+    | bitAnd => fun a b => N.land a b
+    | bitXor => fun a b => N.lxor a b
+    | bitComp => fun a => 1%N
+    | rotL m => fun b => 1%N
+    | rotR m => fun b => 1%N
+    | shiftL m => fun b => 1%N
+    | shiftR m => fun b => 1%N
+    | nop => fun b => b
     end.
 
 End NOps.

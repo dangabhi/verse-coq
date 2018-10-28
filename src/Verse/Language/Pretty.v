@@ -104,32 +104,35 @@ Notation "( 'QUOT' A , 'REM' B ) ::= ( C : D ) [/] E" := (inst (assign (extassig
 
 (** Notations for annotations in code *)
 
-Class Context tyD v := val : context tyD v * context tyD v.
+Class Context tyD v := val : context tyD v.
 
-Notation "'ASSUME' P" := (annot (assert (fun s : Context _ _ => P))) (at level 100).
-Notation "'CLAIM'  P" := (annot (claim (fun s : Context _ _ => P))) (at level 100). (* Check level *)
+Notation "'REMEMBER' P" := (annot (remember (fun s : Context _ _ => P)))
+                             (at level 100).
+
+Notation "'FORGET' 'ALL'" := (annot forget)
+                               (at level 100).
+Notation "'ASSERT' P" := (annot (newass (fun s : Context _ _ => P)))
+                           (at level 100).
+
+Notation "'ASSERT' 'ALSO' P" := (annot (addass (fun s : Context _ _ => P)))
+                           (at level 100).
 
 Notation "A 'HAS' X ; E"
-  := (bind ((fst val) _ _ A) (fun X => E))
-       (at level 81, right associativity, only parsing).
-
-Notation "A 'HAD' X ; E"
-  := (bind ((snd val) _ _ A) (fun X => E))
-       (at level 81, right associativity, only parsing).
-
-Notation "A 'IS' X ; E"
-  := (apA (and <$> (eq X <$> ((fst val) _ _ A))) E)
-       (at level 81, right associativity, only parsing).
-
-Notation "A 'HAD' X 'IN' E"
-  := (ap (fun X => E) ((snd val) _ _ A))
+(*  := ((fun X => E) ((fst val) _ _ A)) *)
+  := (let X := val _ A in E)
        (at level 81, right associativity, only parsing).
 
 Notation "A 'HAS' X 'IN' E"
-  := (ap (fun X => E) ((fst val) _ _ A))
+(*  := ((fun X => E) ((fst val) _ _ A)) *)
+  := (let X := val _ A in E)
        (at level 81, right associativity, only parsing).
 
-Notation "'REMEMBER' X" := (annot (remember X)) (at level 100).
+
+(* Not sure why this does not work
+*)
+Notation "'Val' X" := (val _ X) (at level 50, only parsing).
+(*
+*)
 
 (**
 
