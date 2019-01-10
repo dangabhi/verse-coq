@@ -28,11 +28,7 @@ the meanings of
 *)
 
 
-
-Inductive t (n : nat) : Type :=
-| bits : Bvector.Bvector n -> t n.
-
-Arguments bits [n] _.
+Notation t := (Bvector.Bvector).
 
 Definition bytes n := t (4 * (2 * n)).
 (* Written in this form instead of '8 * n' for type unification of
@@ -41,7 +37,7 @@ Definition bytes n := t (4 * (2 * n)).
 
 Require Verse.Nibble.
 Definition fromNibbles {n} (v : Vector.t Verse.Nibble.Nibble n) : t (4 * n) :=
-  bits (N2Bv_gen (4 * n) (Verse.Nibble.toN v)).
+  (N2Bv_gen (4 * n) (Verse.Nibble.toN v)).
 
 Notation "[[ N ]]" := (fromNibbles N) (at level 100).
 
@@ -59,49 +55,21 @@ Definition mapP {T U} (f : T -> U) (p : T * T) :=
 Definition numOverflowBinop {n} f (x y : t n) : t n * t n :=
   let break_num m := (m / 2 ^ (N.of_nat n), m)
   in
-  match x, y with
-  | bits xv, bits yv =>  mapP (compose (@bits n) (N2Bv_gen n))
-                                 (break_num (f (Bv2N n xv) (Bv2N n yv)))
-  end.
+  mapP (N2Bv_gen n)
+       (break_num (f (Bv2N n x) (Bv2N n y))).
 
 (* This function lifts a numeric binop with one big argument and two outputs *)
 Definition numBigargExop {n} f (x y z : t n) : t n * t n :=
   let make_big x y := (2 ^ (N.of_nat n) * x + y) in
-  match x, y, z with
-  | bits xv, bits yv, bits zv => mapP (compose (@bits n) (N2Bv_gen n))
-                                         (f (make_big (Bv2N n xv) (Bv2N n yv))
-                                            (Bv2N n zv))
-  end.
+  mapP (N2Bv_gen n)
+       (f (make_big (Bv2N n x) (Bv2N n y))
+          (Bv2N n z)).
+
 
 (** This function lifts a numeric binary function to the word type *)
 Definition numBinOp {n} f  (x y : t n) : t n :=
-  match x, y with
-  | bits xv, bits yv => bits (N2Bv_gen n (f (Bv2N n xv)(Bv2N n yv)))
-  end.
-
-(** This function lifts a numeric unary function to the word type *)
-Definition numUnaryOp {n : nat} f (x : t n) : t n :=
-  match x with
-  | bits xv => bits (N2Bv_gen n (f (Bv2N n xv)))
-  end.
-
-Definition liftBV (f : forall n,  Bvector.Bvector n -> Bvector.Bvector n) : forall n, t n -> t n :=
-  fun n x  =>
-    match x with
-    | bits xv => bits (f n xv)
-    end.
-
-Definition liftBV2 (f : forall n,  Bvector.Bvector n  -> Bvector.Bvector n -> Bvector.Bvector n) : forall n , t n -> t n -> t n :=
-  fun n x y =>
-    match x,y with
-    | bits xv, bits yv => bits (f n xv yv)
-    end.
-
+  N2Bv_gen n (f (Bv2N n x) (Bv2N n y)).
 Module BOps.
-
-  Definition BVAnd := Vmap2 andb.
-  Definition BVOr  := Vmap2 orb.
-  Definition BVXor := Vmap2 xorb.
 
   Definition BShiftL m (n : nat) :=
     match n with
@@ -140,15 +108,15 @@ Module BOps.
 End BOps.
 
 
-Definition AndW n := @liftBV2 BOps.BVAnd n.
-Definition OrW  n := @liftBV2 BOps.BVOr  n.
-Definition XorW n := @liftBV2 BOps.BVXor n.
-Definition NegW n := @liftBV  Bvector.Bneg  n.
+Definition AndW := Vmap2 andb.
+Definition OrW  := Vmap2 orb.
+Definition XorW := Vmap2 xorb.
+Definition NegW := Bvector.Bneg.
 
-Definition ShiftLW m := liftBV (BOps.BShiftL m).
-Definition ShiftRW m := liftBV (BOps.BShiftR m).
-Definition RotLW m := liftBV (BOps.BRotL m).
-Definition RotRW m := liftBV (BOps.BRotR m).
+Definition ShiftLW m := BOps.BShiftL m.
+Definition ShiftRW m := BOps.BShiftR m.
+Definition RotLW m := BOps.BRotL m.
+Definition RotRW m := BOps.BRotR m.
 
 Notation "A & B" := (AndW A B) (at level 100) : word_scope.
 Notation "A ❘ B" := (OrW A B)  (at level 100) : word_scope.
