@@ -7,8 +7,8 @@ Require Import BinInt.
 
 Require Import NArith.
 
-Local Notation wO   := (bits (N2Bv_gen _ 0)).
-Local Notation wI   := (bits (N2Bv_gen _ 1)).
+Local Notation wO   := (N2Bv_gen _ 0).
+Local Notation wI   := (N2Bv_gen _ 1).
 Local Notation wadd := (numBinOp N.add).
 Local Notation wmul := (numBinOp N.mul).
 Local Notation weq  := (@eq (Word.t _)).
@@ -20,8 +20,7 @@ Section WordRing.
   Infix "==" := weq (at level 70).
 
   Ltac crush_mod_ring :=
-    repeat (intros []); unfold numBinOp, numUnaryOp;
-    apply f_equal;
+    repeat (intros); unfold numBinOp;
     apply Bv2N_inj; rewrite ?Bv2N_N2Bv_gen_mod;
     simpl;
     try (rewrite ?N.add_mod_idemp_l);

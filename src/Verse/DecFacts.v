@@ -244,8 +244,9 @@ Lemma ty_eq_dec : forall {k}, eq_dec (type k).
 Defined.
 
 Lemma bytes_eq_dec : forall (n : nat), eq_dec (bytes n).
-  destruct A1. destruct A2.
-  unfold Bvector.Bvector in b, b0.
+  intros.
+  unfold bytes in A1, A2.
+  unfold Bvector.Bvector in A1, A2.
   crush_eq_dec.
 Defined.
 

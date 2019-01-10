@@ -23,33 +23,25 @@ Section Basics.
   Variable f g : bool -> bool -> bool.
   Variable n : nat.
 
-  Lemma liftDistr : Distr f g -> Distr (@liftBV2 (@Vmap2 _ _ _ f) n)
-                                       (@liftBV2 (@Vmap2 _ _ _ g) n).
+  Lemma liftDistr : Distr f g -> Distr (@Vmap2 _ _ _ f n)
+                                       (@Vmap2 _ _ _ g n).
     unfold Distr.
     intros.
-    destruct a, b, c.
-    unfold Bvector.Bvector in *.
-    simpl.
-    f_equal.
     induction n.
     now VOtac.
-    VSntac b0. VSntac b1. VSntac b.
+    VSntac a. VSntac b. VSntac c.
     simpl.
     f_equal.
     apply H.
     apply IHn0.
   Qed.
 
-  Lemma liftComm : Comm f -> Comm (@liftBV2 (@Vmap2 _ _ _ f) n).
+  Lemma liftComm : Comm f -> Comm (@Vmap2 _ _ _ f n).
     unfold Comm.
     intros.
-    destruct a, b.
-    unfold Bvector.Bvector in *.
-    simpl.
-    f_equal.
     induction n.
     now VOtac.
-    VSntac b0. VSntac b.
+    VSntac a. VSntac b.
     simpl.
     f_equal.
     apply H.
@@ -69,7 +61,7 @@ Qed.
 
 Lemma OrComm n (w1 w2 : Word.t n)
   : OrW w1 w2 = OrW w2 w1.
-  unfold OrW, BVOr.
+  unfold OrW.
   apply liftComm.
   unfold Comm.
   apply Bool.orb_comm.
@@ -77,7 +69,7 @@ Qed.
 
 Lemma AndComm n (w1 w2 : Word.t n)
   : AndW w1 w2 = AndW w2 w1.
-  unfold AndW, BVAnd.
+  unfold AndW.
   apply liftComm.
   unfold Comm.
   apply Bool.andb_comm.
@@ -85,7 +77,7 @@ Qed.
 
 Lemma OrDistrAnd n (w1 w2 w3 : Word.t n)
   : OrW w1 (AndW w2 w3) = AndW (OrW w1 w2) (OrW w1 w3).
-  unfold OrW, BVOr, BVAnd.
+  unfold OrW.
   apply liftDistr.
   unfold Distr.
   apply Bool.orb_andb_distrib_r.
@@ -93,7 +85,7 @@ Qed.
 
 Lemma AndDistrOr n (w1 w2 w3 : Word.t n)
   : AndW w1 (OrW w2 w3) = OrW (AndW w1 w2) (AndW w1 w3).
-  unfold OrW, BVOr, BVAnd.
+  unfold OrW.
   apply liftDistr.
   unfold Distr.
   apply Bool.andb_orb_distrib_r.
@@ -104,34 +96,30 @@ Lemma rotRCompose n r1 r2 (w : Word.t n)
 Proof.
   destruct w.
   unfold RotRW.
-  simpl liftBV.
-  f_equal.
   unfold BRotR.
-  apply ntimesCompose.
+  all: apply ntimesCompose.
 Qed.
 
 Lemma rotRDistrXor n : forall (w1 w2 : Word.t n) r,
     RotRW r (XorW w1 w2) = XorW (RotRW r w1) (RotRW r w2).
 Proof.
-  destruct w1 as [ b1 ].
-  destruct w2 as [ b2 ].
+  intros w1 w2.
   intro r.
   unfold RotRW.
   unfold XorW.
-  cbn [liftBV liftBV2].
-  f_equal.
+
   (* Reduced to assertion on BVectors *)
   induction r.
   - unfold BRotR; trivial.
   - unfold BRotR.
     unfold Word.BOps.ntimes.
     fold Word.BOps.ntimes.
-    fold (BRotR r (BVXor b1 b2)).
-    fold (BRotR r b1).
-    fold (BRotR r b2).
+    fold (BRotR r (Vmap2 xorb w1 w2)).
+    fold (BRotR r w1).
+    fold (BRotR r w2).
     rewrite IHr.
-    generalize (BRotR r b1) as bv1.
-    generalize (BRotR r b2) as bv2.
+    generalize (BRotR r w1) as bv1.
+    generalize (BRotR r w2) as bv2.
     (* Reduced to the single rotation case *)
     clear IHr.
     intros.
@@ -153,15 +141,13 @@ Proof.
 
       assert (n < S n) by auto.
       repeat rewrite (Vlast_nth _ _ H2).
-      unfold BVXor.
       rewrite Vnth_map2; trivial.
-    * unfold BVXor.
-      unfold Vmap2 at 1.
+    * unfold Vmap2 at 1.
       fold (Vmap2 xorb bv1 bv2).
       rewrite <- H0.
       rewrite <- H1.
       (* Finally down to an assertion that can be proved by induction on n *)
-      clear b1 b2 r H H0 H1.
+      clear w1 w2 r H H0 H1.
       induction n.
       + apply VO_eq.
       + VSntac bv1. VSntac bv2.

@@ -350,7 +350,7 @@ Module SemanticTactics (W : WORD_SEMANTICS) (CW : CONST_SEMANTICS W) (O : OP_SEM
                             breakStore;
                             lazy -[RotRW RotLW ShiftRW ShiftLW XorW AndW OrW NegW
                                    fromNibbles
-                                   numBinOp numUnaryOp numBigargExop numOverflowBinop
+                                   numBinOp numBigargExop numOverflowBinop
                                    Nat.add Nat.sub Nat.mul Nat.div Nat.pow
                                    N.add N.sub N.mul N.div N.div_eucl N.modulo
                                    Ox nth replace];
