@@ -4,7 +4,7 @@ Require Import BinInt.
 Require Import NArith.
 Require Import Verse.CoLoR_VecUtil.
 
-Definition two_power_nat_N n := (2 ^ N.of_nat n)%N.
+Notation two_power_nat_N n := (2 ^ N.of_nat n)%N.
 
 Lemma two_power_nonzero n : two_power_nat_N n <> 0%N.
   now apply N.pow_nonzero.
@@ -81,7 +81,7 @@ Lemma Bv2N_N2Bv_gen_mod n : forall N, Bv2N _ (N2Bv_gen n N) = N.modulo N (two_po
   auto using N.mod_1_r.
 
   intros.
-  unfold two_power_nat_N.
+
   rewrite N2Bv_gen_Sn.
   rewrite Bv2N_Sn.
   rewrite IHn.
