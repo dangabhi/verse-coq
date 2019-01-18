@@ -1,5 +1,6 @@
 Require Import Word.
 
+Require Import NArith.
 Require Import Vector.
 Require Import CoLoR_VecUtil.
 
@@ -49,6 +50,86 @@ Section Basics.
   Qed.
 
 End Basics.
+
+Lemma andW_equiv n v1 v2 : AndW v1 v2 = Bvector.BVand n v1 v2.
+  induction n.
+  - VOtac.
+    now easy.
+  - VSntac v1. VSntac v2.
+    simpl.
+    f_equal.
+    apply IHn.
+Qed.
+
+Lemma shiftR1_div2 n (v : Word.t (S n)) : Bv2N (Bvector.BshiftRl _ v false) = (Bv2N v / 2)%N.
+  unfold Bvector.BshiftRl.
+  unfold Bvector.Bhigh.
+  VSntac v.
+  simpl.
+  rewrite <- N.div2_div.
+  case (Vhead v); [rewrite N.div2_succ_double | rewrite N.div2_double].
+  all: (generalize (Vtail v);
+        clear v H;
+        induction t; [ easy |
+                       simpl; case h; now rewrite IHt ]).
+Qed.
+
+Lemma shiftRW_div n (v1 : Word.t n) : forall m, Bv2N (ShiftRW m v1) = (Bv2N v1 / (2 ^ (N.of_nat m)))%N.
+  unfold ShiftRW.
+  unfold BShiftR.
+
+  unfold Bvector.Bvector in v1.
+
+  induction n.
+  * now VOtac.
+  * induction m.
+    - VSntac v1.
+      simpl.
+      apply eq_sym.
+      apply N.div_1_r.
+    - rewrite Nat2N.inj_succ.
+      simpl Bvector.BshiftRl_iter.
+      rewrite shiftR1_div2.
+      rewrite IHm.
+      rewrite N.div_div.
+      f_equal.
+      rewrite N.pow_succ_r'.
+      now rewrite N.mul_comm.
+
+      apply N.pow_nonzero.
+      all: discriminate.
+Qed.
+
+Lemma size_sizenat n : N.size n = N.of_nat (N.size_nat n).
+  unfold N.size.
+  unfold N.size_nat.
+
+  induction n.
+  - easy.
+  - case_eq (Pos.size_nat p).
+    intro.
+    contradict H.
+    case p; simpl; discriminate.
+    intros.
+    simpl.
+    f_equal.
+    rewrite Pos.of_nat_succ.
+    rewrite <- H. clear H.
+    induction p;
+      [ simpl;
+        case_eq (Pos.size_nat p);
+        [ intro H; contradict H; case p; simpl; discriminate |
+          intros;
+          rewrite <- H;
+          f_equal; apply IHp ]
+          .. | simpl; easy].
+Qed.
+
+Lemma andOnes_mod m N : N.land N (2^m - 1) = (N mod 2^m)%N.
+  rewrite N.sub_1_r.
+  rewrite <- N.ones_equiv.
+  now rewrite <- N.land_ones.
+Qed.
 
 Lemma ntimesCompose A (f : A -> A) n1 n2 a
   : ntimes f n1 (ntimes f n2 a) = ntimes f (n1 + n2) a.
