@@ -62,7 +62,6 @@ Section Indexing.
     IndexArg {i | i < bound} (arg v aK ty)(v (array bound e ty)) :=
     { deref := @index v aK bound e ty }.
 
-  Check exist.
   Global Instance index_var_cache :
     IndexArg {i | i < bound} (v ty) (forall i,  i < bound -> v ty):=
     { deref := fun A ix =>  match ix with
