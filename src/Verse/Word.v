@@ -39,6 +39,7 @@ Require Verse.Nibble.
 Definition fromNibbles {n} (v : Vector.t Verse.Nibble.Nibble n) : t (4 * n) :=
   (N2Bv_gen (4 * n) (Verse.Nibble.toN v)).
 
+Arguments Bv2N [n] _.
 Notation "[[ N ]]" := (fromNibbles N) (at level 100).
 
 (**
@@ -56,19 +57,19 @@ Definition numOverflowBinop {n} f (x y : t n) : t n * t n :=
   let break_num m := (m / 2 ^ (N.of_nat n), m)
   in
   mapP (N2Bv_gen n)
-       (break_num (f (Bv2N n x) (Bv2N n y))).
+       (break_num (f (Bv2N x) (Bv2N y))).
 
 (* This function lifts a numeric binop with one big argument and two outputs *)
 Definition numBigargExop {n} f (x y z : t n) : t n * t n :=
   let make_big x y := (2 ^ (N.of_nat n) * x + y) in
   mapP (N2Bv_gen n)
-       (f (make_big (Bv2N n x) (Bv2N n y))
-          (Bv2N n z)).
+       (f (make_big (Bv2N x) (Bv2N y))
+          (Bv2N z)).
 
 
 (** This function lifts a numeric binary function to the word type *)
 Definition numBinOp {n} f  (x y : t n) : t n :=
-  N2Bv_gen n (f (Bv2N n x) (Bv2N n y)).
+  N2Bv_gen n (f (Bv2N x) (Bv2N y)).
 Module BOps.
 
   Definition BShiftL m (n : nat) :=
