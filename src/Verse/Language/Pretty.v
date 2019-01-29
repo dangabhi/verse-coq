@@ -31,25 +31,17 @@ over variables that can themselves be pretty printed.
 
 (* begin hide *)
 
-
-Class LARG (v : VariableT)(k : kind)(ty : type k) t  := { toLArg : t -> arg v lval ty }.
-Class RARG (v : VariableT)(k : kind)(ty : type k) t  := { toRArg : t -> arg v rval ty }.
-
 Class IndexArg (Ix : Set)(result : Type) t
   := { deref : t -> Ix  -> result }.
 
-Section ARGInstances.
-  Variable v  : VariableT.
-  Variable k  : kind.
-  Variable ty : type k .
+Definition Var (aK : argKind)(v : VariableT) := v.
+Coercion coercion_var_lval (aK : argKind)(v : VariableT)(k : kind) (ty : type k) (x : (Var aK v) k ty)
+    : arg v aK ty :=  @var v aK k ty x .
 
-  Global Instance larg_of_argv : LARG v ty (arg v lval ty) := { toLArg := fun t => t} .
-  Global Instance rarg_of_argv : RARG v ty (arg v rval ty) := { toRArg := fun t => t}.
-  Global Instance larg_of_v    : LARG v ty (v ty)    := { toLArg := fun t => var t}.
-  Global Instance rarg_of_v    : RARG v ty (v ty)    := { toRArg := fun t => var t}.
+  (* Coercion coercion_var_rval  := (fun k ty x => var x) : forall (k : kind)(ty : type k)(x : v ty), arg v rval ty.*)
 
 
-End ARGInstances.
+
 
 Section Indexing.
   Variable v  : VariableT.
@@ -69,63 +61,69 @@ Section Indexing.
                             | @exist _ _ i pf => A i pf
                             end}.
 End Indexing.
+Section ArgCoercion.
+  Variable v  : VariableT.
+  Variable ty : type direct.
+  Coercion coerce_const := (fun ty c => @const v ty c) : forall (ty : type direct)(c : Types.constant ty), arg v rval ty.
 
-Global Instance const_arg_v (v : VariableT)(ty : type direct) : RARG v ty (Types.constant ty)
-  := { toRArg := @const v ty }.
 
-Global Instance nat_arg_v (v : VariableT)(ty : type direct) : RARG v ty nat
-  := { toRArg := fun n => @const v ty (natToConstant ty n)}.
+  Coercion coerce_nat  :=  (fun n => @const v ty (natToConstant ty n)).
+  Coercion coerce_N   :=   (fun n => @const v ty (NToConstant ty n)).
 
-Global Instance N_arg_v (v : VariableT)(ty : type direct) : RARG v ty N
-  := { toRArg := fun n => @const v ty (NToConstant ty n)}.
-(* end hide *)
 
+End ArgCoercion.
+
+Print Classes.
+Print Coercion Paths Var arg.
+Print Coercion Paths N arg.
+
+Print Coercions.
 Notation "A [- N -]"     := (deref A (@exist _ _ N%nat _)) (at level 29).
 
 Notation "! A"           := (inst (index A 0 _)) (at level 70).
-Notation "++ A"        := (inst (increment (toLArg A))) (at level 70).
-Notation "-- A"        := (inst (decrement (toLArg A))) (at level 70).
+Notation "++ A"        := (inst (increment A)) (at level 70).
+Notation "-- A"        := (inst (decrement A)) (at level 70).
 
-Notation "A ::= B"      := (inst (assign (assign2 nop (toLArg A) (toRArg B)))) (at level 70, B at level 29).
+Notation "A ::= B"      := (inst (assign (assign2 nop A B))) (at level 70, B at level 29).
 
-Notation "A ::= B + C" := (inst (assign (assign3 plus  (toLArg A) (toRArg B) (toRArg C) )))  (at level 70, B at level 29).
-Notation "A ::= B - C" := (inst (assign (assign3 minus (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B * C" := (inst (assign (assign3 mul   (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B / C" := (inst (assign (assign3 quot  (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B % C" := (inst (assign (assign3 rem   (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B | C" := (inst (assign (assign3 bitOr (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B & C" := (inst (assign (assign3 bitAnd (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
-Notation "A ::= B ^ C" := (inst (assign (assign3 bitXor (toLArg A) (toRArg B) (toRArg C))))  (at level 70, B at level 29).
+Notation "A ::= B + C" := (inst (assign (assign3 plus  A B C )))  (at level 70, B at level 29).
+Notation "A ::= B - C" := (inst (assign (assign3 minus A B C)))  (at level 70, B at level 29).
+Notation "A ::= B * C" := (inst (assign (assign3 mul   A B C)))  (at level 70, B at level 29).
+Notation "A ::= B / C" := (inst (assign (assign3 quot  A B C)))  (at level 70, B at level 29).
+Notation "A ::= B % C" := (inst (assign (assign3 rem   A B C)))  (at level 70, B at level 29).
+Notation "A ::= B | C" := (inst (assign (assign3 bitOr A B C)))  (at level 70, B at level 29).
+Notation "A ::= B & C" := (inst (assign (assign3 bitAnd A B C)))  (at level 70, B at level 29).
+Notation "A ::= B ^ C" := (inst (assign (assign3 bitXor A B C)))  (at level 70, B at level 29).
 
-Notation "A ::=+ B " := (inst (assign (update2 plus  (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=- B " := (inst (assign (update2 minus (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=* B " := (inst (assign (update2 mul   (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=/ B " := (inst (assign (update2 quot  (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=% B " := (inst (assign (update2 rem   (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=| B " := (inst (assign (update2 bitOr (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=& B " := (inst (assign (update2 bitAnd (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::=^ B " := (inst (assign (update2 bitXor (toLArg A) (toRArg B)))) (at level 70).
+Notation "A ::=+ B " := (inst (assign (update2 plus  A B))) (at level 70).
+Notation "A ::=- B " := (inst (assign (update2 minus A B))) (at level 70).
+Notation "A ::=* B " := (inst (assign (update2 mul   A B))) (at level 70).
+Notation "A ::=/ B " := (inst (assign (update2 quot  A B))) (at level 70).
+Notation "A ::=% B " := (inst (assign (update2 rem   A B))) (at level 70).
+Notation "A ::=| B " := (inst (assign (update2 bitOr A B))) (at level 70).
+Notation "A ::=& B " := (inst (assign (update2 bitAnd A B))) (at level 70).
+Notation "A ::=^ B " := (inst (assign (update2 bitXor A B))) (at level 70).
 
-Notation "A ::=~ B "     := (inst (assign (assign2 bitComp    (toLArg A) (toRArg B)))) (at level 70).
-Notation "A ::= B <<< N" := (inst (assign (assign2 (rotL N)   (toLArg A) (toRArg B)))) (at level 70, B at level 29).
-Notation "A ::= B >>> N" := (inst (assign (assign2 (rotR N)   (toLArg A) (toRArg B)))) (at level 70, B at level 29).
-Notation "A ::= B <<  N"  := (inst (assign (assign2 (shiftL N) (toLArg A) (toRArg B)))) (at level 70, B at level 29).
-Notation "A ::= B >>  N" := (inst (assign (assign2 (shiftR N) (toLArg A) (toRArg B)))) (at level 70, B at level 29).
-Notation "A ::=<< N "    := (inst (assign (update1 (shiftL N) (toLArg A)))) (at level 70).
-Notation "A ::=>> N "    := (inst (assign (update1 (shiftR N) (toLArg A)))) (at level 70).
-Notation "A ::=<<< N "    := (inst (assign (update1 (rotL N)  (toLArg A)))) (at level 70).
-Notation "A ::=>>> N "    := (inst (assign (update1 (rotR N)  (toLArg A)))) (at level 70).
+Notation "A ::=~ B "     := (inst (assign (assign2 bitComp    A B))) (at level 70).
+Notation "A ::= B <<< N" := (inst (assign (assign2 (rotL N)   A B))) (at level 70, B at level 29).
+Notation "A ::= B >>> N" := (inst (assign (assign2 (rotR N)   A B))) (at level 70, B at level 29).
+Notation "A ::= B <<  N"  := (inst (assign (assign2 (shiftL N) A B))) (at level 70, B at level 29).
+Notation "A ::= B >>  N" := (inst (assign (assign2 (shiftR N) A B))) (at level 70, B at level 29).
+Notation "A ::=<< N "    := (inst (assign (update1 (shiftL N) A))) (at level 70).
+Notation "A ::=>> N "    := (inst (assign (update1 (shiftR N) A))) (at level 70).
+Notation "A ::=<<< N "    := (inst (assign (update1 (rotL N)  A))) (at level 70).
+Notation "A ::=>>> N "    := (inst (assign (update1 (rotR N)  A))) (at level 70).
 
 Notation "'CLOBBER' A"   := (inst (clobber A)) (at level 70). (* Check level *)
 Notation "'MOVE'  B 'TO'   A [- N -]"       := (inst (moveTo A (@exist _ _ (N%nat) _) B)) (at level 200, A ident).
 
 Notation "'MULTIPLY' C 'AND' D 'INTO' ( A : B )" := (inst (assign (extassign3 exmul
-                                                        (toLArg A) (toLArg B)
-                                                        (toRArg C) (toRArg D))))
+                                                        A B
+                                                        C D)))
                                        (at level 70, A at level 99).
 Notation "( 'QUOT' A , 'REM' B ) ::= ( C : D ) / E" := (inst (assign (extassign4 eucl
-                                                                   (toLArg A) (toLArg B)
-                                                                   (toRArg C) (toRArg D) (toRArg E))))
+                                                                   A B
+                                                                   C D E)))
                                               (at level 70, C at level 99).
 
 
@@ -189,8 +187,8 @@ Ltac verse_print_mesg :=  match goal with
                           | [ |- _ < _         ]  => verse_bounds_warn
                           | [ |- _ <= _         ] => verse_bounds_warn
                           | [ |- _ < _         ]  => verse_warn; idtac "possible array index out of bound"
-                          | [ |- LARG _ _ _ _  ]  => idtac "verse: possible ill-typed operands in instructions"
-                          | [ |- RARG _ _ _ _  ]  => idtac "verse: possible ill-typed operands in instructions"
+                       (*   | [ |- LARG _ _ _ _  ]  => idtac "verse: possible ill-typed operands in instructions"
+                          | [ |- RARG _ _ _ _  ]  => idtac "verse: possible ill-typed operands in instructions" *)
                           | _                     => verse_warn; idtac "please handle these obligations yourself"
                           end.
 
@@ -333,7 +331,7 @@ we first define an inductive type whose constructors are the variables
 of our program.
 
 *)
-
+(*
 Module Demo.
   Inductive MyVar : VariableT :=
   |  X : MyVar Word8
@@ -341,6 +339,7 @@ Module Demo.
   |  Z : MyVar (Vector128 Word32)
   |  A : MyVar (Array 42 bigE Word8)
   .
+
 
 
 
@@ -397,3 +396,4 @@ operands of the programming fragment.
 *)
 
 End Demo.
+*)
