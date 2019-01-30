@@ -7,7 +7,7 @@ addons:
   apt:
     packages:
       - libgmp-dev
-      - opam
+      - opam-1.2.2
       - ghc
     sources: [avsm]
 matrix:
