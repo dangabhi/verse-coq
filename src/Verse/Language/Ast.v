@@ -189,38 +189,34 @@ Section Translate.
   Variable tr  : typeTranslation src tgt.
   Variable v   : VariablesOf tgt.
 
-  Section ForATypeTY.
+  Definition translateLexpr ty (le : lexpr (transVar tr v) ty)
+    : lexpr v (typeTrans tr ty).
+    refine (match le with
+            | @var _ _ ty x => var (ty := typeTrans tr ty) x
+            | @deref _ _ ty b e a i => @deref tgt v (typeTrans tr ty) b e _ i
+            end). rewrite <- (arrayCompatibility tr). exact a.
+  Defined.
 
-    Definition translateLexpr ty (le : lexpr (transVar tr v) ty)
-      : lexpr v (typeTrans tr ty).
-      refine (match le with
-              | @var _ _ ty x => var (ty := typeTrans tr ty) x
-              | @deref _ _ ty b e a i => @deref tgt v (typeTrans tr ty) b e _ i
-              end). rewrite <- (arrayCompatibility tr). exact a.
-    Defined.
+  Arguments translateLexpr [ty] _.
 
-    Arguments translateLexpr [ty] _.
+  Fixpoint translateExpr ty (e : expr (transVar tr v) ty)
+    : expr v (typeTrans tr ty)
+    := match e with
+       | cval c      => cval (constTrans tr c)
+       | valueOf x   => valueOf (translateLexpr x)
+       | app op args => app op (Vector.map (translateExpr _) args)
+       end.
 
-    Fixpoint translateExpr ty (e : expr (transVar tr v) ty)
-      : expr v (typeTrans tr ty)
-      := match e with
-         | cval c      => cval (constTrans tr c)
-         | valueOf x   => valueOf (translateLexpr x)
-         | app op args => app op (Vector.map (translateExpr _) args)
-         end.
-
-    Definition translateInstruction ty (i : instruction (transVar tr v) ty)
-      : instruction v (typeTrans tr ty) :=
-      match i with
-      | assign x e => assign (translateLexpr x) (translateExpr _ e)
-      | update o x args => update o (translateLexpr x) (Vector.map (translateExpr _) args)
-      | increment x => increment (translateLexpr x)
-      | decrement x => decrement (translateLexpr x)
-      | moveTo x y  => (fun yp : v direct (typeTrans tr ty) => moveTo (translateLexpr x) yp) y
-      | clobber x   => (fun xp : v direct (typeTrans tr ty) => clobber xp) x
-      end.
-
-  End ForATypeTY.
+  Definition translateInstruction ty (i : instruction (transVar tr v) ty)
+    : instruction v (typeTrans tr ty) :=
+    match i with
+    | assign x e => assign (translateLexpr x) (translateExpr _ e)
+    | update o x args => update o (translateLexpr x) (Vector.map (translateExpr _) args)
+    | increment x => increment (translateLexpr x)
+    | decrement x => decrement (translateLexpr x)
+    | moveTo x y  => (fun yp : v direct (typeTrans tr ty) => moveTo (translateLexpr x) yp) y
+    | clobber x   => (fun xp : v direct (typeTrans tr ty) => clobber xp) x
+    end.
 
   Definition translateStatement (s : statement (transVar tr v) )
     : statement v
