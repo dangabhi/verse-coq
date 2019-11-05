@@ -1,5 +1,7 @@
 Require Import Verse.Language.Types.
-Require Vector.
+Require Import Verse.Error.
+
+Require Import Vector.
 Import Vector.VectorNotations.
 
 Section Scoped.
@@ -60,6 +62,37 @@ Section Scoped.
 End Scoped.
 
 Arguments scoped [ts] _ [n].
+
+(** ** Translating scoped objects *)
+Section ScopedTranslate.
+
+  Variable CODE : forall ts : typeSystem, VariablesOf ts -> Type.
+  Arguments CODE [ts].
+
+  Variable src : typeSystem.
+  Variable tgt : typeSystem.
+  Variable tr  : typeTranslation src tgt.
+  Variable v   : VariablesOf tgt.
+
+  Variable translateCode : CODE (transVar tr v) -> CODE v.
+
+  Definition stTrans n (st : scopeType src n) : scopeType tgt n
+    := map (fun kty : some (typeOf src) => let (k, ty) := kty in
+                                           @existT kind _ k (typeTrans tr ty))
+           st.
+
+  Fixpoint translateScoped n (st : scopeType src n)
+    : scoped (transVar tr v) st (CODE (transVar tr v)) -> scoped v (stTrans _ st) (CODE v)
+    := match st as st0 return
+             scoped (transVar tr v) st0 (CODE (transVar tr v)) -> scoped v (stTrans _ st0) (CODE v)
+       with
+       | []                      => fun sc => translateCode sc
+       | (existT _ k ty) :: tst  => fun sc => (fun vtgt => translateScoped _ _ (sc vtgt))
+       end.
+
+End ScopedTranslate.
+
+Arguments translateScoped [CODE src tgt tr v] _ [n st].
 (*
 
 (** A way to apply functions inside a scope *)
