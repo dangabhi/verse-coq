@@ -93,6 +93,52 @@ Section ScopedTranslate.
 End ScopedTranslate.
 
 Arguments translateScoped [CODE src tgt tr v] _ [n st].
+
+Section ScopedCompile.
+
+  Variable CODE : forall ts : typeSystem, VariablesOf ts -> Type.
+  Arguments CODE [ts].
+
+  Variable src : typeSystem.
+  Variable tgt : typeSystem.
+  Variable tr  : typeCompile src tgt.
+  Variable v   : VariablesOf tgt.
+
+  Variable Err : Prop.
+  Variable compileCODE : CODE (compileVar tr v) -> CODE v + {Err}.
+
+  Fixpoint stCompile n (st : scopeType src n) : scopeType tgt n + {TranslationError}
+    := match st with
+       | []                   => {- [] -}
+       | (existT _ k ty) :: tst => match typeTrans tr ty with
+                                 | {- tyt -} => (cons _ (existT _ _ tyt) _) <$> stCompile _ tst
+                                 | error err => error err
+                                 end
+       end.
+
+  Definition compileScoped n (st : scopeType src n)
+    : scoped (compileVar tr v) st (CODE (compileVar tr v)) ->
+      match stCompile _ st with
+      | {- stT -} => scoped v stT ((CODE v) + {Err})
+      | error err => TranslationError
+      end.
+    induction st.
+    - exact compileCODE.
+    - destruct h as [k ty].
+      simpl.
+      destruct (typeTrans tr ty) as [tyt | err] eqn:tytreq.
+      * intro.
+        destruct (stCompile _ st) as [tst | err].
+        + pose (compiled := fun tst => IHst (X tst)).
+          unfold compileVar in compiled.
+          rewrite tytreq in compiled.
+          exact compiled.
+        + exact err.
+      * exact (fun _ => err).
+  Defined.
+
+End ScopedCompile.
+
 (*
 
 (** A way to apply functions inside a scope *)
