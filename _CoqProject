@@ -31,6 +31,7 @@ src/Verse/Target/C/Ast.v
 src/Verse/Target/C/CodeGen.v
 src/Verse/Target/C/Pretty.v
 src/Verse/TypeSystem.v
+src/Verse/CryptoLib/poly1305/c/karatsuba/tree.v
 
 ########################################
 ## CryptoLib: Actual implementations  ##
