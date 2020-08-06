@@ -15,7 +15,61 @@ Arguments KVar [k].
 
 Notation "$ N" := (KaratsubaVar N) (at level 0).
 
+(*
 
+Poly - multiple ways of representing.
+
+1. List of coefficient (list)  -> This is what I am looking at
+2. Assoc list of (degree * coefficient)
+
+v : VariableT
+
+polyvar n v (k : kind) (ty : type k)  = Vector.t (v k ty) n
+
+polyvar v : VariableT
+
+assign (pv : polyvar n v) (Vector.t (expr t ty) ) : code v
+  [v0,v1,....v_m] <- [e0, ...e_m]
+
+add (pv :
+
+pv := ev
+
+add and assign binary tree as well
+
+binary tree of variables  at bt : tree n -> polynomial of degree 2^n
+a0 + X^(2^n) a1
+b0 + X^(2^n) b1
+
+p0 p1, p2, p3, p4 are your fresh variables (polyvars)
+
+p0 = a0 b0
+p1 = a1 b1
+p2 = (a0 + a1)
+p3 = (b0 + b1)
+p4 = p2 * p3
+
+       A0                 A1
+a = (a0 + a1 X) + X^2 (a2 + a3 X)
+b = (b0 + b1 X) + X^2 (b2 + b3 X)
+
+P0 = A0 B0  = (a0 b0 + (a1b0 + a0 b1) X + (a1 b1) X^2)
+
+P1 = (a0b1 + .... + A1B0) X^2
+
+r0 := a0 b0 -----
+r1 := (a0 + a1)(b0 + b1) - a0b0 - a1b1
+r2 = a1b1 + a0b1
+
+3 - mul  4 - addition
+
+4 - mul - 1 - addition
+
+-1 mul + 3 add
+
+result = p0 + X^(2^n) (p4 - p1 - p0) + X^2^(n+1) p -> carry
+
+*)
 
 Section Karatuba.
   Variable var : VariableT.
