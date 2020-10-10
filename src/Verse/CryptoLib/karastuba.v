@@ -23,7 +23,7 @@ Definition expDenote {v}{ty} (k : kexp v ty) : expr v ty :=
   end.
 
 Definition kInst (v : VariableT) (ty : type direct) := (v direct ty * kexp v ty)%type.
-
+Definition kProg (v : VariableT) (ty : type direct) := list (kInst v ty).
 Inductive idx := low | high | carry.
 
 
@@ -46,7 +46,7 @@ Arguments kt2 [v].
 Require List.
 Import List.ListNotations.
 
-Definition ksplit {sz}{v}(ki : kInst (kvar v) (word (S sz)))
+Definition ksplitInst {sz}{v}(ki : kInst (kvar v) (word (S sz)))
   : list (kInst (kvar v) (word sz))
   := let (x,ke) := ki in
      let xL  := ksub x low   in
