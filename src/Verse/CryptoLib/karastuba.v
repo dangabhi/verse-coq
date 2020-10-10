@@ -87,9 +87,14 @@ Definition ksplitInst {sz}{v}(ki : kInst (kvar v) (word (S sz)))
 
      end.
 
+Definition ksplit {sz}{v}
+           (kp : kProg (kvar v) (word (S sz)))
+  : list (kInst (kvar v) (word sz))
+  := List.concat (List.map ksplitInst kp).
+
 Notation "X 'ₗ'"
-  := (ksub X low)
-       (only printing, left associativity, format "X 'ₗ'", at level 40).
+       := (ksub X low)
+            (only printing, left associativity, format "X 'ₗ'", at level 40).
 Notation "X 'ₕ'"
   := (ksub X high)
        (only printing, left associativity, format "X 'ₕ'", at level 40).
@@ -98,12 +103,19 @@ Notation "X '₊'"
        (only printing, left associativity, format "X '₊'", at level 40).
 Notation "A × B" := (MUL A B) (only printing, format "A  ×  B", at level 50).
 Notation "A ⨥ B" := (PLUS A B) (only printing, format "A  ⨥  B", at level 50).
-Notation "A - B - C" := (SUBSUB A B C) (only printing, format "A  - B  - C", at level 40).
-
+Notation "A - B - C" := (SUBSUB A B C) (only printing, format "A  -  B  -  C", at level 40).
 
 Axiom var : VariableT.
-Axiom a b c : kvar var direct (word 3).
+Axiom a b c d x : kvar var direct (word 3).
+Definition mI := (a, MUL b c).
+Definition pI := (a, PLUS b c).
+Definition ssI := (x, SUBSUB a c d).
 
 
 
-Compute List.concat (List.map ksplit (ksplit (a, MUL b c))).
+Compute  mI.
+Compute  pI.
+Compute  ssI.
+
+Compute (ksplit [mI; pI; ssI ]).
+Compute (ksplit (ksplit [mI; pI; ssI ])).
