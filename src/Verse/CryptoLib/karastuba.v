@@ -3,6 +3,22 @@ Require Import Verse.
 Require Vector.
 Open Scope verse_scope.
 
+(*
+ x = a * b
+
+64 bit variables carrying 32 bit values
+
+a = aL + 2^k aH          (al * bl) + 2^k (...) + 2^2k ah bh
+b = bL + 2^k bH            xl            xh          xc
+
+
+
+xL = aL * bL
+xH = a
+
+
+  *)
+
 (* Only these expressions are involved in karatsuba multiplication *)
 Inductive kexp (v : VariableT) (ty : type direct):=
 | MUL    (a b : v direct ty)    : kexp v ty (* a * b *)
@@ -66,7 +82,7 @@ Definition ksplitInst {sz}{v}(ki : kInst (kvar v) (word (S sz)))
             (u0 , PLUS aL aH);
             (u1 , PLUS bL bH);
             (u2 , MUL u0 u1);
-            (xH , SUBSUB u2 u0 u1)
+            (xH , SUBSUB u2 xL xC)
          ]
      | PLUS a b =>
        let aL := ksub a low  in
@@ -78,12 +94,17 @@ Definition ksplitInst {sz}{v}(ki : kInst (kvar v) (word (S sz)))
      | SUBSUB a c d =>
        let aL := ksub a low in
        let aH := ksub a high in
+       let aC := ksub a carry in
        let cL := ksub c low in
        let cH := ksub c high in
+       let cC := ksub c carry in
        let dL := ksub d low in
-       let dH := ksub d high
+       let dH := ksub d high in
+       let dC := ksub d carry
          in [ (xL , SUBSUB aL cL dL);
-            (xH, SUBSUB aH cH dH) ]
+              (xH,  SUBSUB aH cH dH);
+              (xC,  SUBSUB aC cC dC)
+            ]
 
      end.
 
@@ -103,13 +124,16 @@ Notation "X '₊'"
        (only printing, left associativity, format "X '₊'", at level 40).
 Notation "A × B" := (MUL A B) (only printing, format "A  ×  B", at level 50).
 Notation "A ⨥ B" := (PLUS A B) (only printing, format "A  ⨥  B", at level 50).
-Notation "A - B - C" := (SUBSUB A B C) (only printing, format "A  -  B  -  C", at level 40).
-
+Notation "A - B - C" := (SUBSUB A B C) (only printing, format "A  -  B  -  C", at level 50).
+Notation "[ X ; .. ; Y ]"
+  := (cons X .. (cons Y nil) ..)
+       (only printing, format "[ '//' X ; '//' .. ; '//' Y '//' ]").
 Axiom var : VariableT.
 Axiom a b c d x : kvar var direct (word 3).
-Definition mI := (a, MUL b c).
-Definition pI := (a, PLUS b c).
+Definition mI := (x, MUL a b).
+Definition pI := (x, PLUS a b).
 Definition ssI := (x, SUBSUB a c d).
+
 
 
 
@@ -117,5 +141,5 @@ Compute  mI.
 Compute  pI.
 Compute  ssI.
 
-Compute (ksplit [mI; pI; ssI ]).
-Compute (ksplit (ksplit [mI; pI; ssI ])).
+
+Compute (ksplitInst mI , List.map ksplitInst (ksplitInst mI)).
