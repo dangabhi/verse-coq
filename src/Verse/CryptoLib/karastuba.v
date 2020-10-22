@@ -51,6 +51,9 @@ Inductive kvar (v : VariableT) : VariableT :=
 | kt1   : forall sz, kvar v direct (word sz)
 | kt2   : forall sz, kvar v direct (word sz).
 
+Inductive v2 (v : VariableT) : VariableT :=
+| pair : forall sz, v direct (word sz) -> v direct (word sz) -> v2 v direct (word (S sz)).
+
 
 Arguments kv [v sz].
 Arguments ksub [v sz].
