@@ -191,10 +191,13 @@ Section Karatsuba.
         let xC  := ksub x carry in
         let aL := ksub a low  in
         let aH := ksub a high in
+        let aC := ksub a carry in
         let bL := ksub b low  in
-        let bH := ksub b high
+        let bH := ksub b high in
+        let bC := ksub b carry
         in [ kassign xL (PLUS aL bL);
-           kassign xH (PLUS aH bH)  ]
+           kassign xH (PLUS aH bH);
+           kassign xC (PLUS aC bC) ]
 
     | @kassign _ (S _) x (SUBSUB a c d) =>
       fun _ =>
