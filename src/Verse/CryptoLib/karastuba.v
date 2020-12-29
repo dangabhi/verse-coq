@@ -39,13 +39,6 @@ Section Karatsuba.
 
   Variable base : nat.
 
-  Inductive bigv (v : VariableT) : VariableT :=
-  | sv : v direct (word (S base)) -> bigv v direct (word base)
-  | tv :  forall sz, bigv v direct (word sz)
-                     -> bigv v direct (word sz)
-                     -> bigv v direct (word sz)
-                     -> bigv v direct (word (S sz)).
-
   Inductive idx := low | high | carry.
   Definition kty n := word (n + base).
 
