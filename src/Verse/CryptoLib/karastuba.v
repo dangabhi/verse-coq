@@ -47,41 +47,43 @@ Section Karatsuba.
                      -> bigv v direct (word (S sz)).
 
   Inductive idx := low | high | carry.
+  Definition kty n := word (n + base).
 
   Inductive kvar (v : VariableT) : nat -> VariableT :=
   | kv    : v direct (word (S base)) -> kvar v 0 direct (word base)
-  | kbig  : forall lvl, kvar v lvl direct (word (lvl + base))
-                       -> kvar v lvl direct (word (lvl + base))
-                       -> kvar v lvl direct (word (lvl + base))
-                       -> kvar v (S lvl) direct (word (S (lvl + base)))
-  (* Feels like ksub and kt shouldn't be constrnnuctors, but functions.
-     The problem is you cannot dismiss the case of the thing being
-     indexed being a 'kv'
-   *)
-  | ksub  : forall lvl, kvar v (S lvl) direct (word (S lvl + base))
-                        -> idx -> kvar v lvl direct (word (lvl + base))
-  (* The temporary variables *)
-  | kt    : forall lvl, kvar v (S lvl) direct (word (S lvl + base))
-                       -> idx -> kvar v lvl direct (word (lvl + base)).
+  | kbig  : forall lvl, kvar v lvl direct (kty lvl)
+                       -> kvar v lvl direct (kty lvl)
+                       -> kvar v lvl direct (kty lvl)
+                       -> kvar v (S lvl) direct (kty (S lvl)).
 
   Arguments kv [v].
   Arguments kbig [v lvl].
-  Arguments ksub [v lvl].
-  Arguments kt [v lvl].
 
-  Definition kty n := word (n + base).
+  Definition ksub [v lvl]
+             (x : kvar v (S lvl) direct (word (S lvl + base)))
+             (i : idx)
+    : kvar v lvl direct (word (lvl + base))
+    := match x with
+       | kbig a b c => match i return kvar _ _ _ _ with
+                       | low => a
+                       | high => b
+                       | carry => c
+                       end
+       end.
+
+  Definition kt := ksub.
+  Arguments kt [v lvl].
 
   (* Only these expressions are involved in karatsuba multiplication *)
   Inductive kexp (v : VariableT) (ty : type direct) :=
-  | MUL (a b : v _ ty) : kexp v ty
-  | PLUS (a b : v _ ty) : kexp v ty
+  | MUL (a b : v _ ty)      : kexp v ty
+  | PLUS (a b : v _ ty)     : kexp v ty
   | SUBSUB (a b c : v _ ty) : kexp v ty
   .
 
   Global Arguments MUL     [v ty].
   Global Arguments PLUS    [v ty].
   Global Arguments SUBSUB  [v ty].
-(*  Global Arguments CPROP   [v n].*)
 
   Inductive kInst v : nat -> Type :=
   | kassign n : (kvar v n direct (kty n)) ->
@@ -110,12 +112,6 @@ Section Karatsuba.
     match x in @kvar _ lvl0 _ _ return lvlDenote v lvl0 with
        | kv x         => x
        | kbig x y z   => (varDenote x, varDenote y, varDenote z)
-       | ksub x low   => fst (fst (varDenote x))
-       | ksub x high  => snd (fst (varDenote x))
-       | ksub x carry => snd (varDenote x)
-       | kt x low     => fst (fst (varDenote x))
-       | kt x high    => snd (fst (varDenote x))
-       | kt x carry   => snd (varDenote x)
     end.
 
   Definition expDenote [v] (k : kexp (kvar v 0) (word base))
