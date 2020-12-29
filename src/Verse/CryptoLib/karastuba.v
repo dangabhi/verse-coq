@@ -127,11 +127,6 @@ Section Karatsuba.
 
     match i with
     | @kassign _ 0 a e => assign (toLexpr (varDenote a)) (expDenote e)
-    (*
-    | @CProp _ 0 a b   => binopUpdate (toLexpr (varDenote (ksub b low)))
-                                         plus
-                                         (valueOf (var (varDenote (ksub a high))))
-*)
     end.
 
   (** TODO : Absolutely no clue why the extra CProp thing is required!
