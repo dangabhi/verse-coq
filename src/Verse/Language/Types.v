@@ -34,15 +34,30 @@ Definition const (t : type direct) :=
   | multiword m sz => Vector.t (BWord sz)  (2 ^ m)
   end.
 
+Require Import Verse.BitVector.ArithRing.
+
 Definition NToConst (ty : type direct) (num : N) : const ty
-  := let numtrunc sz : BWord sz := N2Bv_sized _ num in
+  := let numtrunc sz : BWord sz
+         := match num with
+            | 0%N => zero
+            | 1%N => one
+(** TODO : This was done for the arithring BVector to be able to work
+           with constants 0 and 1 written explicitly.
+           The ring framework already provides something for this purpose.
+           We might want to add those either as constants or as a
+           preprocess tactic
+*)
+            | num => N2Bv_sized _ num
+            end
+     in
      match ty in type direct return const ty with
      | word sz => numtrunc sz
      | multiword m sz => Vector.const (numtrunc sz) (2^m)
      end.
 
+
 Definition natToConst (ty : type direct) (num : nat) : const ty
-  :=  NToConst ty (N.of_nat num).
+  := NToConst ty (N.of_nat num).
 
 (** * Operators of Verse language.
 
