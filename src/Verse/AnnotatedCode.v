@@ -13,6 +13,19 @@ Delimit Scope annotation_scope with annot.
 
 Section Annotated.
 
+  Variable tyD : typeDenote verse_type_system.
+
+  Definition Rel (ty : typeOf verse_type_system direct)
+    := typeTrans tyD ty -> typeTrans tyD ty -> Prop.
+
+  Variable Rels : forall (ty : typeOf verse_type_system direct),
+      Rel ty -> Prop
+  .
+
+  Inductive noRels : forall (ty : typeOf verse_type_system direct),
+      Rel ty -> Type :=
+  .
+
   Variable v : Variables.U verse_type_system.
   Arguments v [k].
 
@@ -29,8 +42,6 @@ Section Annotated.
 
   Definition expr  T := Ast.expr  dv T.
   Definition lexpr T := Ast.lexpr dv T.
-
-  Variable tyD : typeDenote verse_type_system.
 
   Definition leval {T} (l : lexpr T) `{State _ v tyD} {st : StoreP str}
     : typeTrans tyD T
@@ -57,17 +68,6 @@ Section Annotated.
        | Ast.uniOp o e0    => (opTrans tyD o) (evalE e0)
        end.
 
-
-  Definition Rel (ty : typeOf verse_type_system direct)
-    := typeTrans tyD ty -> typeTrans tyD ty -> Prop.
-
-  Variable Rels : forall (ty : typeOf verse_type_system direct),
-      Rel ty -> Prop
-  .
-
-  Inductive noRels : forall (ty : typeOf verse_type_system direct),
-      Rel ty -> Type :=
-  .
 
   Inductive VProp : Type :=
   | eq  : forall ty, expr ty -> expr ty -> VProp
@@ -106,8 +106,8 @@ Section Annotated.
 
 End Annotated.
 
-Arguments eq [v tyD Rels ty].
-Arguments rel [v tyD Rels ty rel].
+Arguments eq [tyD Rels v ty].
+Arguments rel [tyD Rels v ty rel].
 
 Global Infix "=" := (fun x y => eq (toExpr x) (toExpr y)) (at level 70) : annotation_scope.
 
@@ -122,6 +122,6 @@ Notation "'ANNOT' a" := (map (@annot _ _ _) a)
 Arguments NEW [v k ty].
 Arguments OLD [v k ty].
 Arguments noRels {tyD}.
-Arguments Annotated v [tyD].
-Arguments instruct [v tyD] {Rels}.
-Arguments annot [v tyD] {Rels}.
+Arguments Annotated [tyD].
+Arguments instruct [tyD Rels] {v}.
+Arguments annot [tyD Rels] {v}.

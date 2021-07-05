@@ -97,11 +97,11 @@ Section CodeGen.
                               existT _ _ (typeTrans tyD ty))
                   sc.
 
-  Variable ac : forall v, Scope.scoped v sc (AnnotatedCode v tyD Rels).
+  Variable ac : forall v, Scope.scoped v sc (AnnotatedCode tyD Rels v).
 
   Definition c := denote _ _ _ (Scope.fillScoped ac) (scopeStore _ _).
 
-  Definition cp := linesDenote _ _ store_semantics c.
+  Definition cp := interpret c.
 
   Definition tpt := forall (st : str), snd cp
                                            ({| store := st |}, {| store := st |}).

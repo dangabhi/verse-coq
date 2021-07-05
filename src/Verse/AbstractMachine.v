@@ -211,9 +211,9 @@ Section Machine.
   Definition justInst
     : instruction state -> mline
     := fun i => (i, fun _ => True).
-
+  (*
   Coercion justInst : instruction >-> mline .
-
+   *)
   Definition store_machine
     : mSpecs ts ts
     := {|
@@ -308,6 +308,8 @@ Section ForAllCxt.
 
 End ForAllCxt.
 
+Arguments interpret [v tyD] {state}.
+
 Require Import Verse.Language.Types.
 
 (* ** Semantics for the Verse language.
@@ -396,6 +398,9 @@ Require Import Verse.BitVector.
 Require Import Verse.BitVector.ArithRing.
 
 (* Destruct the variable store for easier access to valuations *)
+
+(* TODO : These are just the curry uncurry from Scope.v with more
+   generality *)
 
 Fixpoint prodn T n : Type
   := match n with
